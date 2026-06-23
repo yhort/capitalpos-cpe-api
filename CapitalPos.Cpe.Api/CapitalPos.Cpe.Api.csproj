@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.20" />
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="7.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Legacy\WinFormsCpe\Entidades\" />
+      <Folder Include="Legacy\WinFormsCpe\Firma\" />
+      <Folder Include="Legacy\WinFormsCpe\Sunat\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Legacy/**/*.cs" />
+        <None Include="Legacy/**/*.cs" />
+
+        <Compile Remove="Legacy/**/*.vb" />
+        <None Include="Legacy/**/*.vb" />
+    </ItemGroup>
+
+</Project>

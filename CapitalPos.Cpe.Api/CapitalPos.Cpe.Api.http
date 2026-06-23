@@ -1,0 +1,175 @@
+@host = http://localhost:5096
+@apiKey = capitalpos-dev-123
+
+### Emitir CPE con respuesta estándar
+POST http://localhost:5096/api/cpe/emitir
+Content-Type: application/json
+
+{
+  "rucEmisor": "20606264004",
+  "emisor": {
+    "ruc": "20606264004",
+    "razonSocial": "C.G CAPITAL SYSTEM S.A.C.",
+    "nombreComercial": "CAPITALPOS",
+    "ubigeo": "150101",
+    "direccion": "AV. PRINCIPAL 123",
+    "departamento": "LIMA",
+    "provincia": "LIMA",
+    "distrito": "LIMA"
+  },
+  "tipoComprobante": "03",
+  "serie": "B001",
+  "correlativo": 8,
+  "fechaEmision": "2026-06-04T00:00:00",
+  "moneda": "PEN",
+  "tipoOperacion": "0101",
+  "observacion": "Venta gravada desde API CPE",
+  "formaPago": "CONTADO",
+  "montoPendientePago": 0,
+  "cuotas": [
+  ],
+  "cliente": {
+    "tipoDocumento": "1",
+    "numeroDocumento": "12345678",
+    "razonSocial": "CLIENTE DE PRUEBA"
+  },
+  "items": [
+    {
+      "codigo": "PROD002",
+      "descripcion": "Producto gravado",
+      "unidadMedida": "NIU",
+      "cantidad": 1,
+      "valorUnitario": 50.00,
+      "precioUnitario": 50.00,
+      "subtotal": 50.00,
+      "igv": 0,
+      "total": 50.00,
+      "codigoAfectacionIgv": "20"
+    }
+  ],
+  "totalGravada": 0,
+  "totalExonerada": 50.00,
+  "totalInafecta": 0,
+  "totalIgv": 0,
+  "total": 50.00
+}
+
+### Catálogo - Estados CPE
+GET http://localhost:5096/api/cpe/catalogos/estados-cpe
+
+GET http://localhost:5096/api/cpe/config
+### Catálogo - Etapas CPE
+GET http://localhost:5096/api/cpe/catalogos/etapas-cpe
+
+### Health API CPE
+GET http://localhost:5096/api/health
+
+### Diagnóstico CPE
+GET http://localhost:5096/api/cpe/diagnostico
+
+### Preparar carpetas CPE
+POST http://localhost:5096/api/cpe/diagnostico/preparar-carpetas
+
+### Diagnóstico CPE
+GET http://localhost:5096/api/cpe/diagnostico
+
+### Obtener request demo
+GET http://localhost:5096/api/cpe/pruebas/request-demo
+
+### Emitir comprobante demo
+POST http://localhost:5096/api/cpe/pruebas/emitir-demo
+
+### Listar historial
+GET http://localhost:5096/api/cpe/historial
+
+### Resumen historial
+GET http://localhost:5096/api/cpe/historial/resumen
+
+### Listar XML
+GET http://localhost:5096/api/cpe/archivos/xml/info
+
+### Validar XML guardado
+GET http://localhost:5096/api/cpe/archivos/xml/20606264004-03-B001-131640.xml/validar
+
+### Ver resumen XML
+GET http://localhost:5096/api/cpe/archivos/xml/20606264004-03-B001-131640.xml/resumen
+
+### Simular limpieza de archivos antiguos
+POST http://localhost:5096/api/cpe/archivos/limpiar-antiguos?dias=7&ejecutar=false
+
+### Ejecutar limpieza real de archivos antiguos
+POST http://localhost:5096/api/cpe/archivos/limpiar-antiguos?dias=7&ejecutar=true
+
+
+
+### Emitir demo con API Key
+POST http://localhost:5096/api/cpe/pruebas/emitir-demo
+X-API-KEY: capitalpos-dev-123
+### Emitir demo con API Key
+POST {{host}}/api/cpe/pruebas/emitir-demo
+X-API-KEY: {{apiKey}}
+
+### Listar historial con API Key
+GET {{host}}/api/cpe/historial
+X-API-KEY: {{apiKey}}
+
+### Resumen historial con API Key
+GET {{host}}/api/cpe/historial/resumen
+X-API-KEY: {{apiKey}}
+
+
+
+### Listar XML info con API Key
+GET {{host}}/api/cpe/archivos/xml/info
+X-API-KEY: {{apiKey}}
+
+### Diagnóstico con API Key
+GET {{host}}/api/cpe/diagnostico
+X-API-KEY: {{apiKey}}
+
+### Debe fallar por falta de API Key
+GET {{host}}/api/cpe/historial
+
+
+### Debe devolver 401, no 500
+GET http://localhost:5096/api/cpe/historial
+
+### Debe funcionar
+GET http://localhost:5096/api/cpe/historial
+X-API-KEY: capitalpos-dev-123
+
+### Probar CorrelationId automático
+GET http://localhost:5096/api/cpe/historial
+X-API-KEY: capitalpos-dev-123
+
+### Probar error global con CorrelationId
+GET http://localhost:5096/api/health/error-test
+X-Correlation-ID: prueba-error-001
+
+### Emitir demo usando XML UBL
+POST http://localhost:5096/api/cpe/pruebas/emitir-demo
+X-API-KEY: capitalpos-dev-123
+
+### Listar XML
+GET http://localhost:5096/api/cpe/archivos/xml/info
+X-API-KEY: capitalpos-dev-123
+
+### Ver XML generado
+GET http://localhost:5096/api/cpe/archivos/xml/20606264004-03-B001-141821.xml
+X-API-KEY: capitalpos-dev-123
+
+POST http://localhost:5096/api/cpe/pruebas/firma/20606264004-03-B001-141821.xml
+X-API-KEY: capitalpos-dev-123
+
+### Probar firma XML existente
+POST http://localhost:5096/api/cpe/pruebas/firma/20606264004-03-B001-141821.xml
+X-API-KEY: capitalpos-dev-123
+
+GET http://localhost:5096/api/cpe/archivos/zip/info
+X-API-KEY: capitalpos-dev-123
+
+### Probar envío SUNAT con ZIP existente
+POST http://localhost:5096/api/cpe/pruebas/sunat/NOMBRE_DEL_ZIP.zip
+X-API-KEY: capitalpos-dev-123
+
+unzip -l /Users/yhortcruz/Documents/Dev/capitalpos-cpe-files/BETA/ZIP/20606264004-03-B001-141821.zip

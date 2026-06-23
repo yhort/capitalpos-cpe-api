@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+# Build
+bin/
+obj/
+
+# Logs
+*.log
+
+# Secrets / certificados
+*.pfx
+*.p12
+*.key
+*.pem
+*.cer
+*.crt
+
+# Config sensibles
+appsettings.Production.json
+appsettings.Local.json
