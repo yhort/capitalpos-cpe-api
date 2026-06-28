@@ -1,98 +1,309 @@
-# CapitalPOS CPE API
+# 🚀 CapitalPOS CPE API
 
-API REST desarrollada en ASP.NET Core para la emisión, validación y gestión de comprobantes electrónicos SUNAT.
+> Backend desarrollado en **ASP.NET Core** para la emisión, validación y gestión de comprobantes electrónicos SUNAT.
 
-## Descripción
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-7-blue)
+![C#](https://img.shields.io/badge/C%23-.NET-success)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-Database-red)
+![REST API](https://img.shields.io/badge/REST-API-orange)
+![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-green)
 
-CapitalPOS CPE API forma parte de la evolución tecnológica de CapitalPOS, una solución comercial desarrollada para la gestión de ventas, inventarios y facturación electrónica.
+---
 
-El proyecto tiene como objetivo desacoplar la lógica de emisión electrónica del sistema de escritorio tradicional, permitiendo su consumo desde aplicaciones Web, Desktop y Mobile.
+# 📖 Descripción
 
-## Tecnologías
+CapitalPOS CPE API forma parte de la evolución tecnológica de **CapitalPOS**, un sistema comercial desarrollado durante más de **7 años**, utilizado para la gestión de ventas, inventarios y facturación electrónica.
 
-* ASP.NET Core
-* C#
-* REST API
-* SQL Server
-* Swagger / OpenAPI
-* Dependency Injection
-* Arquitectura por Capas
+El objetivo del proyecto es desacoplar completamente la lógica de Facturación Electrónica del sistema Windows Forms para convertirla en una API REST reutilizable por aplicaciones Desktop, Web y Mobile.
 
-## Arquitectura
+Actualmente este backend forma parte de la migración tecnológica del producto hacia una arquitectura moderna basada en **ASP.NET Core**.
 
-El proyecto está organizado en las siguientes capas:
+---
 
-* Controllers
-* Services
-* Interfaces
-* Infrastructure
-* Domain
-* DTOs
-* Settings
-* Middlewares
-* Helpers
+# 💡 ¿Por qué este proyecto?
 
-## Funcionalidades Implementadas
+CapitalPOS nació como una aplicación Windows Forms.
 
-### Gestión de Comprobantes
+Conforme fue creciendo el producto surgió la necesidad de desacoplar toda la lógica de Facturación Electrónica para que pudiera ser utilizada por distintos clientes:
 
-* Validación de comprobantes
-* Generación de XML
-* Firma digital (modo simulación)
-* Envío a SUNAT (modo simulación)
-* Gestión de archivos XML
+- Windows Forms
+- Aplicaciones Web
+- Aplicaciones móviles
+- Integraciones con terceros
 
-### Seguridad
+Por ello se desarrolló esta API REST utilizando ASP.NET Core.
 
-* API Key Authentication
-* Middleware de validación
-* Manejo global de excepciones
-* Correlation ID
+---
 
-### Diagnóstico y Monitoreo
+# 🛠 Tecnologías
 
-* Health Check
-* Configuración de entorno
-* Historial de operaciones
-* Diagnóstico de emisión
+- ASP.NET Core 7
+- C#
+- SQL Server
+- REST API
+- Swagger / OpenAPI
+- Dependency Injection
+- Middleware
+- Arquitectura por Capas
+- Git
+- GitHub
 
-## Endpoints Principales
+---
 
-### Salud del servicio
+# 🏗 Arquitectura General
 
-GET /api/health
+```mermaid
+flowchart LR
 
-### Validación de comprobantes
+WF["CapitalPOS<br/>Windows Forms"]
 
-POST /api/cpe/validar
+WEB["Aplicación Web<br/>Angular"]
 
-### Generación de XML
+APP["Aplicación Móvil<br/>Flutter"]
 
-POST /api/cpe/generar/generar-xml
+API["CapitalPOS CPE API<br/>ASP.NET Core"]
 
-### Emisión de comprobantes
+SQL["SQL Server"]
 
-POST /api/cpe/demo/emitir
+XML["Generación XML"]
 
-## Estado del Proyecto
+FIRMA["Firma Digital"]
+
+SUNAT["SUNAT"]
+
+CDR["Recepción CDR"]
+
+WF --> API
+
+WEB --> API
+
+APP --> API
+
+API --> SQL
+
+API --> XML
+
+API --> FIRMA
+
+API --> SUNAT
+
+SUNAT --> CDR
+```
+
+---
+
+# 🏛 Arquitectura Interna
+
+```mermaid
+flowchart TB
+
+Controllers
+
+Services
+
+Interfaces
+
+Infrastructure
+
+Domain
+
+DTOs
+
+Settings
+
+Middlewares
+
+Helpers
+
+Controllers --> Services
+
+Services --> Interfaces
+
+Interfaces --> Infrastructure
+
+Infrastructure --> Domain
+
+Services --> DTOs
+
+Services --> Helpers
+
+Program --> Middlewares
+
+Middlewares --> Controllers
+```
+
+---
+
+# 📸 Capturas
+
+## Swagger
+
+Visualización de todos los endpoints disponibles.
+
+![Swagger](screenshots/01-swagger-endpoints.png)
+
+---
+
+## Health Check
+
+Estado de la API.
+
+![Health](screenshots/02-health-check.png)
+
+---
+
+## Validación de Comprobantes
+
+Validación de datos antes de generar el XML.
+
+![Validación](screenshots/03-validacion-cpe.png)
+
+---
+
+## Generación de XML
+
+Proceso de generación del comprobante electrónico.
+
+![XML](screenshots/04-generacion-xml.png)
+
+---
+
+## Arquitectura del Proyecto
+
+Estructura del proyecto en Rider.
+
+![Arquitectura](screenshots/05-arquitectura-proyecto.png)
+
+---
+
+# 📂 Organización del Proyecto
+
+```
+CapitalPos.Cpe.Api
+│
+├── Controllers
+├── Docs
+├── Domain
+├── DTOs
+├── Helpers
+├── Infrastructure
+│   ├── Firma
+│   ├── Storage
+│   ├── Sunat
+│   └── Xml
+├── Interfaces
+├── Legacy
+├── Mappers
+├── Middlewares
+├── Services
+├── Settings
+└── Program.cs
+```
+
+---
+
+# ✅ Funcionalidades
+
+## Gestión de Comprobantes
+
+- Validación de comprobantes electrónicos
+- Generación XML UBL
+- Firma Digital (Modo Simulación)
+- Envío SUNAT (Modo Simulación)
+- Gestión de archivos XML
+- Historial de operaciones
+
+---
+
+## Seguridad
+
+- API Key Authentication
+- Middleware personalizado
+- Correlation ID
+- Global Exception Middleware
+
+---
+
+## Diagnóstico
+
+- Health Check
+- Diagnóstico
+- Historial
+- Configuración
+
+---
+
+# 🌐 Endpoints
+
+| Método | Endpoint | Descripción |
+|---------|----------|-------------|
+| GET | `/api/health` | Estado de la API |
+| POST | `/api/cpe/validar` | Validación |
+| POST | `/api/cpe/generar-xml` | Generación XML |
+| POST | `/api/cpe/demo/emitir` | Emisión Demo |
+| GET | `/api/cpe/config` | Configuración |
+| GET | `/api/cpe/diagnostico` | Diagnóstico |
+
+---
+
+# 🚧 Estado del Proyecto
 
 Proyecto en desarrollo activo.
 
-Actualmente forma parte de la migración de CapitalPOS desde una arquitectura Windows Forms hacia una arquitectura moderna basada en APIs REST utilizando ASP.NET Core.
+Actualmente forma parte de la migración tecnológica de **CapitalPOS**, evolucionando desde Windows Forms hacia una arquitectura basada en APIs REST utilizando ASP.NET Core.
 
-## Próximas Funcionalidades
+---
 
-* Integración completa SUNAT
-* Gestión de CDR
-* OAuth Authentication
-* Dashboard de monitoreo
-* Frontend Angular
-* Aplicaciones móviles
+# 🗺 Roadmap
 
-## Autor
+- ✅ Arquitectura Base
+- ✅ Controllers
+- ✅ Services
+- ✅ Dependency Injection
+- ✅ Health Check
+- ✅ Swagger
+- ✅ API Key Authentication
+- ✅ Validación
+- ✅ Generación XML
+- ✅ Historial
+- 🔄 Firma Digital Producción
+- 🔄 Integración SUNAT Producción
+- 🔄 Recepción CDR
+- 🔄 OAuth / JWT
+- 🔄 Frontend Angular
+- 🔄 Aplicación Flutter
 
-Yhort Anthony Cruz Arbañil
+---
+
+# 👨‍💻 Autor
+
+## Yhort Anthony Cruz Arbañil
 
 Full Stack Developer
 
-C# | ASP.NET Core | SQL Server | Angular | Facturación Electrónica SUNAT
+Especialista en:
+
+- ASP.NET Core
+- C#
+- SQL Server
+- Windows Forms
+- Angular
+- REST APIs
+- Facturación Electrónica SUNAT
+
+---
+
+## ⭐ Evolución del Proyecto
+
+```text
+CapitalPOS Windows Forms
+            │
+            ▼
+ Migración de Facturación Electrónica
+            │
+            ▼
+     CapitalPOS CPE API
+            │
+            ▼
+      Angular + Flutter
+```
