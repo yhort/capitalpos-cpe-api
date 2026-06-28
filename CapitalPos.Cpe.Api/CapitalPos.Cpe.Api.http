@@ -183,9 +183,9 @@ X-API-KEY:
 unzip -l capitalpos-cpe-files/BETA/ZIP/20606264004-03-B001-141821.zip
 
 
-### Listar ZIP desde la API
+### Listar ZIP validando API Key desde User Secrets
 GET http://localhost:5096/api/cpe/archivos/zip/info
-X-API-KEY: 
+X-API-KEY: capitalpos-dev-123
 
 
 ### Health API
