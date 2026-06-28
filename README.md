@@ -164,7 +164,7 @@ Validación de datos antes de generar el XML.
 
 Proceso de generación del comprobante electrónico.
 
-![XML](screenshots/04-generacion-xml.png)
+![XML](screenshots/04-generar-xml.png)
 
 ---
 
