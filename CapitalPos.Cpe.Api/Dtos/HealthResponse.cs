@@ -12,5 +12,6 @@ public class HealthResponse
     public bool SimularEnvioSunat { get; set; }
     public bool GuardarCdrSimulado { get; set; }
     public string RutaArchivos { get; set; } = string.Empty;
+    public string RutaArchivosAbsoluta { get; set; } = string.Empty;
     public DateTime FechaServidor { get; set; } = DateTime.Now;
 }

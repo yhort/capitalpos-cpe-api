@@ -6,6 +6,7 @@ using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Middlewares;
 using CapitalPos.Cpe.Api.Services;
 using CapitalPos.Cpe.Api.Settings;
+using CapitalPos.Cpe.Api.Infrastructure.Cdr;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,8 +37,45 @@ builder.Services.AddScoped<ICpeHashService, CpeHashService>();
 builder.Services.AddScoped<ICpeHistorialService, CpeHistorialService>();
 builder.Services.AddScoped<ICpeFirmaService, CpeFirmaService>();
 builder.Services.AddScoped<ICpeSunatService, CpeSunatService>();
+builder.Services.AddScoped<ICpeCdrService, CpeCdrService>();
 
+builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen(); //Reemplazando para usar con apikey sigueinte bloque
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("ApiKey", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "Ingrese la API Key en el header X-API-KEY",
+        Name = "X-API-KEY",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "ApiKeyScheme"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "ApiKey"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+builder.Services.AddHttpClient();
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Middlewares
 

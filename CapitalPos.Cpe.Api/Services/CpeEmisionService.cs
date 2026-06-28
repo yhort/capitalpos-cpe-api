@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using CapitalPos.Cpe.Api.Domain;
 using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Mappers;
+using System.IO.Compression;
+using System.Xml.Linq;
 
 namespace CapitalPos.Cpe.Api.Services;
 
@@ -415,17 +417,62 @@ public class CpeEmisionService
             return;
         }
 
-        var contenidoCdrSimulado = $"""
-                                    CDR SIMULADO
-                                    Estado: {respuestaSunat.Estado}
-                                    Codigo SUNAT: {respuestaSunat.CodigoSunat}
-                                    Mensaje SUNAT: {respuestaSunat.MensajeSunat}
-                                    Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}
-                                    """;
+        var cdrZipBytes = CrearCdrSimuladoZipBytes(respuestaSunat);
 
-        _storageService.GuardarCdr(respuestaSunat.NombreCdr, contenidoCdrSimulado);
+        _storageService.GuardarCdrBytes(respuestaSunat.NombreCdr, cdrZipBytes);
 
-        _logger.LogInformation("CDR guardado correctamente: {NombreCdr}", respuestaSunat.NombreCdr);
+        _logger.LogInformation("CDR simulado ZIP guardado correctamente: {NombreCdr}", respuestaSunat.NombreCdr);
+    }
+    
+    private static byte[] CrearCdrSimuladoZipBytes(CpeSunatResponse respuestaSunat)
+    {
+        var nombreCdr = respuestaSunat.NombreCdr
+                        ?? throw new InvalidOperationException("El nombre del CDR es obligatorio.");
+
+        var nombreXmlInterno = Path.ChangeExtension(nombreCdr, ".xml")
+                               ?? throw new InvalidOperationException("No se pudo generar el nombre XML interno del CDR simulado.");
+
+        using var memoryStream = new MemoryStream();
+
+        using (var zip = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entrada = zip.CreateEntry(nombreXmlInterno);
+
+            using var entradaStream = entrada.Open();
+
+            var xml = CrearXmlCdrSimulado(respuestaSunat);
+            xml.Save(entradaStream);
+        }
+
+        return memoryStream.ToArray();
+    }
+
+    private static XDocument CrearXmlCdrSimulado(CpeSunatResponse respuestaSunat)
+    {
+        XNamespace app = "urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2";
+        XNamespace cbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
+        XNamespace cac = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
+
+        return new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XElement(app + "ApplicationResponse",
+                new XAttribute(XNamespace.Xmlns + "cbc", cbc),
+                new XAttribute(XNamespace.Xmlns + "cac", cac),
+
+                new XElement(cbc + "UBLVersionID", "2.0"),
+                new XElement(cbc + "CustomizationID", "1.0"),
+                new XElement(cbc + "ID", respuestaSunat.NombreCdr),
+                new XElement(cbc + "IssueDate", DateTime.Now.ToString("yyyy-MM-dd")),
+                new XElement(cbc + "IssueTime", DateTime.Now.ToString("HH:mm:ss")),
+
+                new XElement(cac + "DocumentResponse",
+                    new XElement(cac + "Response",
+                        new XElement(cbc + "ResponseCode", respuestaSunat.CodigoSunat),
+                        new XElement(cbc + "Description", respuestaSunat.MensajeSunat)
+                    )
+                )
+            )
+        );
     }
 
     private static void AgregarEtapa(

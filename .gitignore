@@ -25,3 +25,10 @@ appsettings.Production.json
 appsettings.Local.json
 
 CapitalPos.Cpe.Api/Legacy/CapitalPos.Cpe.Api/Legacy/
+
+# Archivos generados por la API CPE
+CapitalPos.Cpe.Api/capitalpos-cpe-files/
+capitalpos-cpe-files/
+
+# Rider HTTP request history
+.idea/**/httpRequests/

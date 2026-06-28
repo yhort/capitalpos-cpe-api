@@ -32,6 +32,7 @@ public class HealthController : ControllerBase
             GuardarCdrSimulado = _settings.GuardarCdrSimulado,
 
             RutaArchivos = _settings.RutaArchivos,
+            RutaArchivosAbsoluta = Path.GetFullPath(_settings.RutaArchivos),
             FechaServidor = DateTime.Now
         };
 

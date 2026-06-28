@@ -8,7 +8,7 @@
       "applicationUrl": "http://localhost:5096",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "CpeSecuritySettings__ApiKey": "capitalpos-dev-123"
+        "CpeSecuritySettings__ApiKey": ""
       }
     },
     "https": {
@@ -18,7 +18,7 @@
       "applicationUrl": "https://localhost:7040;http://localhost:5096",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "CpeSecuritySettings__ApiKey": "capitalpos-dev-123"
+        "CpeSecuritySettings__ApiKey": ""
       }
     }
   }

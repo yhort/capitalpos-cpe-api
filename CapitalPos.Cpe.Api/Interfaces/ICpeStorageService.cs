@@ -26,5 +26,7 @@ public interface ICpeStorageService
     
     CpeLimpiezaArchivosResponse LimpiarArchivosAntiguos(int diasAntiguedad, bool ejecutar);
     
+    string GuardarCdrBytes(string nombreArchivo, byte[] contenido);
+    
     
 }

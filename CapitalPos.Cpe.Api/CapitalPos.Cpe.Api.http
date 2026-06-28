@@ -1,5 +1,5 @@
 @host = http://localhost:5096
-@apiKey = capitalpos-dev-123
+@apiKey = 
 
 ### Emitir CPE con respuesta estándar
 POST http://localhost:5096/api/cpe/emitir
@@ -104,7 +104,7 @@ POST http://localhost:5096/api/cpe/archivos/limpiar-antiguos?dias=7&ejecutar=tru
 
 ### Emitir demo con API Key
 POST http://localhost:5096/api/cpe/pruebas/emitir-demo
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 ### Emitir demo con API Key
 POST {{host}}/api/cpe/pruebas/emitir-demo
 X-API-KEY: {{apiKey}}
@@ -136,11 +136,11 @@ GET http://localhost:5096/api/cpe/historial
 
 ### Debe funcionar
 GET http://localhost:5096/api/cpe/historial
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Probar CorrelationId automático
 GET http://localhost:5096/api/cpe/historial
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Probar error global con CorrelationId
 GET http://localhost:5096/api/health/error-test
@@ -148,28 +148,45 @@ X-Correlation-ID: prueba-error-001
 
 ### Emitir demo usando XML UBL
 POST http://localhost:5096/api/cpe/pruebas/emitir-demo
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Listar XML
 GET http://localhost:5096/api/cpe/archivos/xml/info
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Ver XML generado
 GET http://localhost:5096/api/cpe/archivos/xml/20606264004-03-B001-141821.xml
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 POST http://localhost:5096/api/cpe/pruebas/firma/20606264004-03-B001-141821.xml
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Probar firma XML existente
 POST http://localhost:5096/api/cpe/pruebas/firma/20606264004-03-B001-141821.xml
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 GET http://localhost:5096/api/cpe/archivos/zip/info
-X-API-KEY: capitalpos-dev-123
+X-API-KEY: 
 
 ### Probar envío SUNAT con ZIP existente
-POST http://localhost:5096/api/cpe/pruebas/sunat/NOMBRE_DEL_ZIP.zip
-X-API-KEY: capitalpos-dev-123
+POST http://localhost:5096/api/cpe/pruebas/sunat/20606264004-03-B001-1759.zip
+X-API-KEY: 
 
-unzip -l /Users/yhortcruz/Documents/Dev/capitalpos-cpe-files/BETA/ZIP/20606264004-03-B001-141821.zip
+### Listar CDR desde la API
+GET http://localhost:5096/api/cpe/archivos/cdr/info
+X-API-KEY: 
+
+### Leer CDR existente
+GET http://localhost:5096/api/cpe/cdr/R-20606264004-03-B001-171623.zip
+X-API-KEY: 
+
+unzip -l capitalpos-cpe-files/BETA/ZIP/20606264004-03-B001-141821.zip
+
+
+### Listar ZIP desde la API
+GET http://localhost:5096/api/cpe/archivos/zip/info
+X-API-KEY: 
+
+
+### Health API
+GET http://localhost:5096/api/health

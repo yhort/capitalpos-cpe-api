@@ -127,6 +127,19 @@ public class CpeStorageService : ICpeStorageService
 
         return rutaArchivo;
     }
+    
+    public string GuardarCdrBytes(string nombreArchivo, byte[] contenido)
+    {
+        if (!NombreArchivoZipValido(nombreArchivo))
+            throw new ArgumentException("Nombre de CDR inválido.", nameof(nombreArchivo));
+
+        var carpetaCdr = ObtenerCarpetaCdr();
+        var rutaArchivo = Path.Combine(carpetaCdr, nombreArchivo);
+
+        File.WriteAllBytes(rutaArchivo, contenido);
+
+        return rutaArchivo;
+    }
 
     public List<string> ListarCdr()
     {
