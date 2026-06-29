@@ -137,7 +137,7 @@ public class CpeFirmaService : ICpeFirmaService
         var certificado = new X509Certificate2(
             _settings.RutaCertificado,
             _settings.PasswordCertificado,
-            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet
+            X509KeyStorageFlags.Exportable
         );
 
         if (!certificado.HasPrivateKey)

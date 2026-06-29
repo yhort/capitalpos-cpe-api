@@ -41,13 +41,13 @@ public class PruebasController : ControllerBase
     [HttpPost("emitir-demo")]
     public IActionResult EmitirDemo()
     {
-        if (!_settings.SimularFirma || !_settings.SimularEnvioSunat)
+        if (!_settings.SimularEnvioSunat)
         {
             var errorResponse = ApiResponse<CpeEmisionResponse>.Fail(
-                "No se puede emitir demo porque la API no está completamente en simulación.",
+                "No se puede emitir demo porque el envío a SUNAT real está activado.",
                 new List<string>
                 {
-                    "Para usar este endpoint, SimularFirma y SimularEnvioSunat deben estar en true."
+                    "Para usar este endpoint, SimularEnvioSunat debe estar en true. La firma puede ser simulada o real."
                 }
             );
 

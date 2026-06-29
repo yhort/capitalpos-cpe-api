@@ -1,6 +1,7 @@
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Settings;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography.X509Certificates;
 
 namespace CapitalPos.Cpe.Api.Services;
 
@@ -86,6 +87,8 @@ public class CpeDiagnosticoService
                     : "Falta password del certificado."
         );
 
+        RevisarLecturaCertificado(checks);
+
         AgregarCheck(
             checks,
             "Envío SUNAT",
@@ -168,6 +171,106 @@ public class CpeDiagnosticoService
                 ? $"La carpeta existe: {ruta}"
                 : $"La carpeta aún no existe: {ruta}"
         );
+    }
+
+    private void RevisarLecturaCertificado(List<CpeDiagnosticoItemResponse> checks)
+    {
+        if (_settings.SimularFirma)
+        {
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                true,
+                "No se valida lectura del certificado porque la firma está simulada."
+            );
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.RutaCertificado))
+        {
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                false,
+                "No se puede leer el certificado porque RutaCertificado está vacío."
+            );
+
+            return;
+        }
+
+        if (!File.Exists(_settings.RutaCertificado))
+        {
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                false,
+                $"No se encontró el certificado en la ruta: {_settings.RutaCertificado}"
+            );
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.PasswordCertificado))
+        {
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                false,
+                "No se puede leer el certificado porque falta PasswordCertificado."
+            );
+
+            return;
+        }
+
+        try
+        {
+            var certificado = new X509Certificate2(
+                _settings.RutaCertificado,
+                _settings.PasswordCertificado,
+                X509KeyStorageFlags.Exportable
+            );
+
+            if (!certificado.HasPrivateKey)
+            {
+                AgregarCheck(
+                    checks,
+                    "Lectura certificado digital",
+                    false,
+                    "El certificado se pudo leer, pero no contiene clave privada."
+                );
+
+                return;
+            }
+
+            if (certificado.NotAfter < DateTime.Now)
+            {
+                AgregarCheck(
+                    checks,
+                    "Lectura certificado digital",
+                    false,
+                    $"El certificado está vencido. Fecha de vencimiento: {certificado.NotAfter:yyyy-MM-dd HH:mm:ss}"
+                );
+
+                return;
+            }
+
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                true,
+                $"Certificado válido. Vence: {certificado.NotAfter:yyyy-MM-dd HH:mm:ss}"
+            );
+        }
+        catch (Exception ex)
+        {
+            AgregarCheck(
+                checks,
+                "Lectura certificado digital",
+                false,
+                $"No se pudo leer el certificado digital. Error: {ex.Message}"
+            );
+        }
     }
 
     private bool ExisteCertificadoConfigurado()
