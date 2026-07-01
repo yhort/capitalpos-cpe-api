@@ -124,7 +124,7 @@ public class CpeController : ControllerBase
     [HttpPost("emitir")]
     public IActionResult Emitir([FromBody] EmitirCpeRequest request)
     {
-        var data = _cpeEmisionService.EmitirComprobanteSimulado(request);
+        var data = _cpeEmisionService.EmitirComprobante(request);
 
         if (data.Ok)
         {

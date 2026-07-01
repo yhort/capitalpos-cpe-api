@@ -126,7 +126,7 @@ public class CpeEmisionService
         }
     }
 
-    public CpeEmisionResponse EmitirComprobanteSimulado(EmitirCpeRequest request)
+    public CpeEmisionResponse EmitirComprobante(EmitirCpeRequest request)
     {
         var etapas = new List<CpeEtapaResponse>();
 

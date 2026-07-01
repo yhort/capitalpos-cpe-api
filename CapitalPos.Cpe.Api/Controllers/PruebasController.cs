@@ -55,7 +55,7 @@ public class PruebasController : ControllerBase
         }
 
         var request = _demoService.CrearBoletaDemo();
-        var data = _emisionService.EmitirComprobanteSimulado(request);
+        var data = _emisionService.EmitirComprobante(request);
 
         if (data.Ok)
         {
