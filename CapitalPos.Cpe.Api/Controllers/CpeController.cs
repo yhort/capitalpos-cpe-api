@@ -140,6 +140,7 @@ public class CpeController : ControllerBase
         {
             var errorResponse = ApiResponse<CpeEmisionResponse>.Fail(
                 "Ocurrió un error interno al emitir el comprobante.",
+                data,
                 data.Errores
             );
 
@@ -148,6 +149,7 @@ public class CpeController : ControllerBase
 
         var badResponse = ApiResponse<CpeEmisionResponse>.Fail(
             data.Mensaje,
+            data,
             data.Errores
         );
 

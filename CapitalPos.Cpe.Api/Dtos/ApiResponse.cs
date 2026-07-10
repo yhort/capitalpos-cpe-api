@@ -29,6 +29,17 @@ public class ApiResponse<T>
         };
     }
 
+    public static ApiResponse<T> Fail(string mensaje, T? data, List<string> errores)
+    {
+        return new ApiResponse<T>
+        {
+            Ok = false,
+            Mensaje = mensaje,
+            Data = data,
+            Errores = errores
+        };
+    }
+
     public static ApiResponse<T> Fail(string mensaje, string error)
     {
         return new ApiResponse<T>
