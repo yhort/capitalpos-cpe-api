@@ -18,7 +18,9 @@ public class CpeXmlValidatorService : ICpeXmlValidatorService
         {
             try
             {
-                XDocument.Parse(xml);
+                var documento = XDocument.Parse(xml);
+
+                ValidarOrdenInvoiceUblSunat(documento, errores);
             }
             catch (Exception ex)
             {
@@ -41,5 +43,140 @@ public class CpeXmlValidatorService : ICpeXmlValidatorService
             Ok = true,
             Mensaje = "El XML está bien formado."
         };
+    }
+
+    private static void ValidarOrdenInvoiceUblSunat(XDocument documento, List<string> errores)
+    {
+        var raiz = documento.Root;
+
+        if (raiz == null || raiz.Name.LocalName != "Invoice")
+            return;
+
+        var elementos = raiz.Elements().ToList();
+
+        ValidarAntes(elementos, "InvoiceTypeCode", "DocumentCurrencyCode", errores);
+        ValidarAntes(elementos, "DocumentCurrencyCode", "AccountingSupplierParty", errores);
+        ValidarAntes(
+            elementos,
+            "AccountingSupplierParty",
+            "AccountingCustomerParty",
+            errores
+        );
+
+        ValidarAntes(elementos, "AccountingCustomerParty", "TaxTotal", errores);
+        ValidarAntes(elementos, "TaxTotal", "LegalMonetaryTotal", errores);
+        ValidarAntes(elementos, "LegalMonetaryTotal", "InvoiceLine", errores);
+        ValidarNoteNoAntesDeLegalMonetaryTotal(elementos, errores);
+        ValidarElementosNoReintroducidos(elementos, errores);
+        ValidarEstructuraImpuestos(raiz, errores);
+    }
+
+    private static void ValidarAntes(
+        List<XElement> elementos,
+        string primero,
+        string segundo,
+        List<string> errores)
+    {
+        var indicePrimero = elementos.FindIndex(e => e.Name.LocalName == primero);
+        var indiceSegundo = elementos.FindIndex(e => e.Name.LocalName == segundo);
+
+        if (indicePrimero < 0)
+        {
+            errores.Add($"Falta el elemento UBL {primero}.");
+            return;
+        }
+
+        if (indiceSegundo < 0)
+        {
+            errores.Add($"Falta el elemento UBL {segundo}.");
+            return;
+        }
+
+        if (indicePrimero > indiceSegundo)
+        {
+            errores.Add($"El elemento UBL {primero} debe aparecer antes de {segundo}.");
+        }
+    }
+
+    private static void ValidarNoteNoAntesDeLegalMonetaryTotal(
+        List<XElement> elementos,
+        List<string> errores)
+    {
+        var indiceNote = elementos.FindIndex(e => e.Name.LocalName == "Note");
+
+        if (indiceNote < 0)
+            return;
+
+        var indiceLegalMonetaryTotal = elementos.FindIndex(e => e.Name.LocalName == "LegalMonetaryTotal");
+
+        if (indiceLegalMonetaryTotal < 0)
+        {
+            errores.Add("Falta el elemento UBL LegalMonetaryTotal.");
+            return;
+        }
+
+        if (indiceNote < indiceLegalMonetaryTotal)
+        {
+            errores.Add("El elemento UBL Note no debe aparecer antes de LegalMonetaryTotal para SUNAT beta.");
+        }
+    }
+
+    private static void ValidarElementosNoReintroducidos(
+        List<XElement> elementos,
+        List<string> errores)
+    {
+        ValidarAusente(elementos, "LineCountNumeric", errores);
+        ValidarAusente(elementos, "PaymentTerms", errores);
+        ValidarAusente(elementos, "Signature", errores);
+    }
+
+    private static void ValidarAusente(
+        List<XElement> elementos,
+        string nombre,
+        List<string> errores)
+    {
+        if (elementos.Any(e => e.Name.LocalName == nombre))
+        {
+            errores.Add($"El elemento UBL {nombre} no debe aparecer como nodo principal en esta etapa.");
+        }
+    }
+
+    private static void ValidarEstructuraImpuestos(XElement raiz, List<string> errores)
+    {
+        var taxSubtotals = raiz
+            .Descendants()
+            .Where(e => e.Name.LocalName == "TaxSubtotal")
+            .ToList();
+
+        foreach (var taxSubtotal in taxSubtotals)
+        {
+            var tieneTaxSchemeDirecto = taxSubtotal
+                .Elements()
+                .Any(e => e.Name.LocalName == "TaxScheme");
+
+            if (tieneTaxSchemeDirecto)
+            {
+                errores.Add("TaxScheme no debe ser hijo directo de TaxSubtotal; debe estar dentro de TaxCategory.");
+            }
+
+            var taxCategory = taxSubtotal
+                .Elements()
+                .FirstOrDefault(e => e.Name.LocalName == "TaxCategory");
+
+            if (taxCategory == null)
+            {
+                errores.Add("TaxSubtotal debe contener TaxCategory.");
+                continue;
+            }
+
+            var tieneTaxSchemeEnCategoria = taxCategory
+                .Elements()
+                .Any(e => e.Name.LocalName == "TaxScheme");
+
+            if (!tieneTaxSchemeEnCategoria)
+            {
+                errores.Add("TaxCategory debe contener TaxScheme.");
+            }
+        }
     }
 }

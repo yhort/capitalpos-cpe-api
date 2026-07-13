@@ -40,27 +40,10 @@ public class CpeXmlUblGenerator : ICpeXmlGenerator
                 new XElement(cbc + "ID", serieCorrelativo),
                 new XElement(cbc + "IssueDate", documento.FechaEmision.ToString("yyyy-MM-dd")),
                 new XElement(cbc + "IssueTime", documento.FechaEmision.ToString("HH:mm:ss")),
-                CrearLeyendaMontoEnLetras(documento, cbc),
-                new XElement(cbc + "InvoiceTypeCode",
-                    new XAttribute("listAgencyName", "PE:SUNAT"),
-                    new XAttribute("listName", "Tipo de Documento"),
-                    new XAttribute("listURI", "urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo01"),
-                    new XAttribute("listID", documento.TipoOperacion),
-                    new XAttribute("name", "Tipo de Operacion"),
-                    new XAttribute("listSchemeURI", "urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo51"),
-                    documento.TipoComprobante
-                ),
-                new XElement(cbc + "DocumentCurrencyCode",
-                    new XAttribute("listID", "ISO 4217 Alpha"),
-                    new XAttribute("listName", "Currency"),
-                    new XAttribute("listAgencyName", "United Nations Economic Commission for Europe"),
-                    documento.Moneda
-                ),
-                new XElement(cbc + "LineCountNumeric", documento.Items.Count),
-                CrearFirma(documento, cac, cbc),
+                CrearInvoiceTypeCode(documento, cbc),
+                CrearDocumentCurrencyCode(documento, cbc),
                 CrearEmisor(documento, cac, cbc),
                 CrearCliente(documento, cac, cbc),
-                CrearFormaPago(documento, cac, cbc),
                 CrearImpuestos(documento, cac, cbc),
                 CrearTotales(documento, cac, cbc),
                 CrearItems(documento, cac, cbc)
@@ -69,6 +52,30 @@ public class CpeXmlUblGenerator : ICpeXmlGenerator
 
         return xml.ToString();
     }
+
+    private static XElement CrearInvoiceTypeCode(CpeDocumento documento, XNamespace cbc)
+    {
+        return new XElement(cbc + "InvoiceTypeCode",
+            new XAttribute("listAgencyName", "PE:SUNAT"),
+            new XAttribute("listName", "Tipo de Documento"),
+            new XAttribute("listURI", "urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo01"),
+            new XAttribute("listID", documento.TipoOperacion),
+            new XAttribute("name", "Tipo de Operacion"),
+            new XAttribute("listSchemeURI", "urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo51"),
+            documento.TipoComprobante
+        );
+    }
+
+    private static XElement CrearDocumentCurrencyCode(CpeDocumento documento, XNamespace cbc)
+    {
+        return new XElement(cbc + "DocumentCurrencyCode",
+            new XAttribute("listID", "ISO 4217 Alpha"),
+            new XAttribute("listName", "Currency"),
+            new XAttribute("listAgencyName", "United Nations Economic Commission for Europe"),
+            documento.Moneda
+        );
+    }
+
     private static XElement CrearExtensiones(XNamespace ext)
     {
         return new XElement(ext + "UBLExtensions",
@@ -240,6 +247,24 @@ public class CpeXmlUblGenerator : ICpeXmlGenerator
                 new XAttribute("currencyID", moneda),
                 taxAmount
             ),
+            CrearTaxCategory(
+                cac,
+                cbc,
+                taxSchemeId,
+                taxSchemeName,
+                taxTypeCode
+            )
+        );
+    }
+
+    private static XElement CrearTaxCategory(
+        XNamespace cac,
+        XNamespace cbc,
+        string taxSchemeId,
+        string taxSchemeName,
+        string taxTypeCode)
+    {
+        return new XElement(cac + "TaxCategory",
             CrearTaxScheme(
                 cac,
                 cbc,

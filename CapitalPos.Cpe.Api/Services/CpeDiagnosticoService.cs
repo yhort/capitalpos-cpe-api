@@ -8,10 +8,14 @@ namespace CapitalPos.Cpe.Api.Services;
 public class CpeDiagnosticoService
 {
     private readonly CpeSettings _settings;
+    private readonly CpeSecuritySettings _securitySettings;
 
-    public CpeDiagnosticoService(IOptions<CpeSettings> options)
+    public CpeDiagnosticoService(
+        IOptions<CpeSettings> options,
+        IOptions<CpeSecuritySettings> securityOptions)
     {
         _settings = options.Value;
+        _securitySettings = securityOptions.Value;
     }
 
     public CpeDiagnosticoResponse Revisar()
@@ -21,8 +25,10 @@ public class CpeDiagnosticoService
         AgregarCheck(
             checks,
             "Modo CPE",
-            _settings.Modo.ToUpper() == "BETA" || _settings.Modo.ToUpper() == "PRODUCCION",
-            $"Modo actual: {_settings.Modo}"
+            ModoValido(),
+            ModoValido()
+                ? $"Modo actual: {NormalizarModo()}."
+                : "El modo CPE debe ser BETA o PRODUCCION."
         );
 
         AgregarCheck(
@@ -31,16 +37,18 @@ public class CpeDiagnosticoService
             !string.IsNullOrWhiteSpace(_settings.RutaArchivos),
             string.IsNullOrWhiteSpace(_settings.RutaArchivos)
                 ? "La ruta de archivos no está configurada."
-                : $"Ruta configurada: {_settings.RutaArchivos}"
+                : "La ruta de archivos está configurada."
         );
+
+        var rutaArchivosPreparada = RutaArchivosExisteOPuedePrepararse();
 
         AgregarCheck(
             checks,
-            "Existe ruta de archivos",
-            !string.IsNullOrWhiteSpace(_settings.RutaArchivos) && Directory.Exists(_settings.RutaArchivos),
-            Directory.Exists(_settings.RutaArchivos)
-                ? "La ruta de archivos existe."
-                : "La ruta de archivos no existe."
+            "Ruta de archivos preparada",
+            rutaArchivosPreparada,
+            rutaArchivosPreparada
+                ? "La ruta de archivos existe o puede prepararse con la configuración actual."
+                : "La ruta de archivos no existe y no se pudo confirmar que pueda prepararse."
         );
 
         RevisarCarpetaModo(checks, "XML");
@@ -49,84 +57,90 @@ public class CpeDiagnosticoService
 
         AgregarCheck(
             checks,
-            "Firma digital",
-            _settings.SimularFirma || ExisteCertificadoConfigurado(),
+            "SimularFirma",
+            !_settings.SimularFirma,
             _settings.SimularFirma
-                ? "Firma digital en modo simulación."
-                : "Firma digital real activada. Se requiere certificado configurado."
+                ? "Advertencia: la firma está simulada; no hay firma real para SUNAT beta."
+                : "Firma real activada."
         );
 
         AgregarCheck(
             checks,
             "Generación XML",
-            _settings.SimularGeneracionXml,
+            !_settings.SimularGeneracionXml,
             _settings.SimularGeneracionXml
-                ? "Generación XML en modo simulación."
-                : "Generación XML real activada. Aún falta implementar UBL real."
+                ? "Advertencia: generación XML simulada; no es adecuada para SUNAT beta real."
+                : "Generación XML real activada."
+        );
+
+        var certificadoConfigurado = !string.IsNullOrWhiteSpace(_settings.RutaCertificado);
+        var certificadoExiste = certificadoConfigurado && File.Exists(_settings.RutaCertificado);
+
+        AgregarCheck(
+            checks,
+            "RutaCertificado configurada",
+            certificadoConfigurado,
+            certificadoConfigurado
+                ? "Ruta de certificado configurada."
+                : "Falta configurar RutaCertificado."
         );
 
         AgregarCheck(
             checks,
-            "Certificado digital",
-            _settings.SimularFirma || ExisteCertificadoConfigurado(),
-            _settings.SimularFirma
-                ? "No se exige certificado porque la firma está simulada."
-                : ExisteCertificadoConfigurado()
-                    ? "Certificado digital encontrado."
-                    : "No se encontró certificado digital."
+            "Archivo certificado existe",
+            certificadoExiste,
+            certificadoExiste
+                ? "Archivo de certificado encontrado."
+                : "No se encontró el archivo de certificado configurado."
         );
 
         AgregarCheck(
             checks,
             "Password certificado",
-            _settings.SimularFirma || !string.IsNullOrWhiteSpace(_settings.PasswordCertificado),
-            _settings.SimularFirma
-                ? "No se exige password porque la firma está simulada."
-                : !string.IsNullOrWhiteSpace(_settings.PasswordCertificado)
-                    ? "Password de certificado configurado."
-                    : "Falta password del certificado."
+            !string.IsNullOrWhiteSpace(_settings.PasswordCertificado),
+            !string.IsNullOrWhiteSpace(_settings.PasswordCertificado)
+                ? "Password de certificado configurado."
+                : "Falta configurar PasswordCertificado."
         );
 
         RevisarLecturaCertificado(checks);
 
         AgregarCheck(
             checks,
-            "Envío SUNAT",
-            _settings.SimularEnvioSunat || TieneCredencialesSol(),
+            "SimularEnvioSunat",
+            !_settings.SimularEnvioSunat,
             _settings.SimularEnvioSunat
-                ? "Envío SUNAT en modo simulación."
-                : "Envío SUNAT real activado. Se requieren credenciales SOL."
+                ? "Advertencia: el envío SUNAT está simulado; no se enviará a SUNAT."
+                : "Envío SUNAT real activado."
         );
 
         AgregarCheck(
             checks,
             "Usuario SOL",
-            _settings.SimularEnvioSunat || !string.IsNullOrWhiteSpace(_settings.UsuarioSol),
-            _settings.SimularEnvioSunat
-                ? "No se exige usuario SOL porque el envío SUNAT está simulado."
-                : !string.IsNullOrWhiteSpace(_settings.UsuarioSol)
-                    ? "Usuario SOL configurado."
-                    : "Falta usuario SOL."
+            !string.IsNullOrWhiteSpace(_settings.UsuarioSol),
+            !string.IsNullOrWhiteSpace(_settings.UsuarioSol)
+                ? $"Usuario SOL configurado ({Enmascarar(_settings.UsuarioSol)})."
+                : "Falta configurar UsuarioSol."
         );
 
         AgregarCheck(
             checks,
             "Clave SOL",
-            _settings.SimularEnvioSunat || !string.IsNullOrWhiteSpace(_settings.ClaveSol),
-            _settings.SimularEnvioSunat
-                ? "No se exige clave SOL porque el envío SUNAT está simulado."
-                : !string.IsNullOrWhiteSpace(_settings.ClaveSol)
-                    ? "Clave SOL configurada."
-                    : "Falta clave SOL."
+            !string.IsNullOrWhiteSpace(_settings.ClaveSol),
+            !string.IsNullOrWhiteSpace(_settings.ClaveSol)
+                ? "Clave SOL configurada."
+                : "Falta configurar ClaveSol."
         );
+
+        var urlSunat = _settings.ObtenerUrlSunat();
 
         AgregarCheck(
             checks,
             "URL SUNAT",
-            !string.IsNullOrWhiteSpace(_settings.ObtenerUrlSunat()),
-            string.IsNullOrWhiteSpace(_settings.ObtenerUrlSunat())
+            !string.IsNullOrWhiteSpace(urlSunat),
+            string.IsNullOrWhiteSpace(urlSunat)
                 ? "La URL de SUNAT no está configurada."
-                : $"URL SUNAT: {_settings.ObtenerUrlSunat()}"
+                : $"URL SUNAT configurada para {NormalizarModo()}."
         );
 
         AgregarCheck(
@@ -138,13 +152,56 @@ public class CpeDiagnosticoService
                 : "El CDR simulado no se guardará por configuración."
         );
 
+        AgregarCheck(
+            checks,
+            "API key CPE",
+            !_securitySettings.ApiKeyEnabled || !string.IsNullOrWhiteSpace(_securitySettings.ApiKey),
+            !_securitySettings.ApiKeyEnabled
+                ? "Advertencia: API key CPE deshabilitada; solo aceptable en entorno controlado."
+                : !string.IsNullOrWhiteSpace(_securitySettings.ApiKey)
+                    ? $"API key CPE configurada en header {_securitySettings.HeaderName}."
+                    : $"Falta configurar API key CPE para el header {_securitySettings.HeaderName}."
+        );
+
         return new CpeDiagnosticoResponse
         {
             Ok = checks.All(c => c.Ok),
-            Modo = _settings.Modo,
+            Modo = NormalizarModo(),
             FechaRevision = DateTime.Now,
             Checks = checks
         };
+    }
+
+    private bool ModoValido()
+    {
+        var modo = NormalizarModo();
+        return modo == "BETA" || modo == "PRODUCCION";
+    }
+
+    private string NormalizarModo()
+    {
+        return (_settings.Modo ?? string.Empty).Trim().ToUpperInvariant();
+    }
+
+    private bool RutaArchivosExisteOPuedePrepararse()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.RutaArchivos))
+            return false;
+
+        if (Directory.Exists(_settings.RutaArchivos))
+            return true;
+
+        try
+        {
+            var rutaCompleta = Path.GetFullPath(_settings.RutaArchivos);
+            var directorioPadre = Directory.GetParent(rutaCompleta);
+
+            return directorioPadre != null && Directory.Exists(directorioPadre.FullName);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void RevisarCarpetaModo(List<CpeDiagnosticoItemResponse> checks, string nombreCarpeta)
@@ -168,25 +225,13 @@ public class CpeDiagnosticoService
             $"Carpeta {nombreCarpeta}",
             Directory.Exists(ruta),
             Directory.Exists(ruta)
-                ? $"La carpeta existe: {ruta}"
-                : $"La carpeta aún no existe: {ruta}"
+                ? $"La carpeta {nombreCarpeta} existe."
+                : $"La carpeta {nombreCarpeta} aún no existe; puede prepararse con el endpoint de preparación de carpetas."
         );
     }
 
     private void RevisarLecturaCertificado(List<CpeDiagnosticoItemResponse> checks)
     {
-        if (_settings.SimularFirma)
-        {
-            AgregarCheck(
-                checks,
-                "Lectura certificado digital",
-                true,
-                "No se valida lectura del certificado porque la firma está simulada."
-            );
-
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(_settings.RutaCertificado))
         {
             AgregarCheck(
@@ -205,7 +250,7 @@ public class CpeDiagnosticoService
                 checks,
                 "Lectura certificado digital",
                 false,
-                $"No se encontró el certificado en la ruta: {_settings.RutaCertificado}"
+                "No se encontró el certificado configurado."
             );
 
             return;
@@ -268,21 +313,9 @@ public class CpeDiagnosticoService
                 checks,
                 "Lectura certificado digital",
                 false,
-                $"No se pudo leer el certificado digital. Error: {ex.Message}"
+                $"No se pudo leer el certificado digital. Error seguro: {TipoErrorSeguro(ex)}."
             );
         }
-    }
-
-    private bool ExisteCertificadoConfigurado()
-    {
-        return !string.IsNullOrWhiteSpace(_settings.RutaCertificado)
-               && File.Exists(_settings.RutaCertificado);
-    }
-
-    private bool TieneCredencialesSol()
-    {
-        return !string.IsNullOrWhiteSpace(_settings.UsuarioSol)
-               && !string.IsNullOrWhiteSpace(_settings.ClaveSol);
     }
 
     private static void AgregarCheck(
@@ -297,6 +330,24 @@ public class CpeDiagnosticoService
             Ok = ok,
             Mensaje = mensaje
         });
+    }
+
+    private static string Enmascarar(string valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return "no configurado";
+
+        var limpio = valor.Trim();
+
+        if (limpio.Length <= 4)
+            return "****";
+
+        return $"{limpio[..2]}***{limpio[^2..]}";
+    }
+
+    private static string TipoErrorSeguro(Exception ex)
+    {
+        return ex.GetType().Name;
     }
 
     public CpeDiagnosticoResponse PrepararCarpetas()
@@ -354,27 +405,27 @@ public class CpeDiagnosticoService
                     checks,
                     nombre,
                     true,
-                    $"Carpeta creada correctamente: {ruta}"
+                    "Carpeta creada correctamente."
                 );
 
                 return;
             }
 
             AgregarCheck(
-                checks,
-                nombre,
-                true,
-                $"La carpeta ya existe: {ruta}"
-            );
-        }
-        catch (Exception ex)
-        {
-            AgregarCheck(
-                checks,
-                nombre,
-                false,
-                $"No se pudo crear la carpeta {ruta}. Error: {ex.Message}"
-            );
-        }
+            checks,
+            nombre,
+            true,
+            "La carpeta ya existe."
+        );
     }
+    catch (Exception ex)
+    {
+        AgregarCheck(
+            checks,
+            nombre,
+            false,
+            $"No se pudo crear la carpeta. Error seguro: {TipoErrorSeguro(ex)}."
+        );
+    }
+}
 }

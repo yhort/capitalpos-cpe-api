@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CapitalPos.Cpe.Api", "CapitalPos.Cpe.Api\CapitalPos.Cpe.Api.csproj", "{E58F4F87-7C8E-4FDE-A422-F65DF052A34B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CapitalPos.Cpe.Tests", "CapitalPos.Cpe.Tests\CapitalPos.Cpe.Tests.csproj", "{40B77815-A843-4D10-B30B-DA90EA85DC64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,12 @@ Global
 		{E58F4F87-7C8E-4FDE-A422-F65DF052A34B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E58F4F87-7C8E-4FDE-A422-F65DF052A34B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E58F4F87-7C8E-4FDE-A422-F65DF052A34B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40B77815-A843-4D10-B30B-DA90EA85DC64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40B77815-A843-4D10-B30B-DA90EA85DC64}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40B77815-A843-4D10-B30B-DA90EA85DC64}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40B77815-A843-4D10-B30B-DA90EA85DC64}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
