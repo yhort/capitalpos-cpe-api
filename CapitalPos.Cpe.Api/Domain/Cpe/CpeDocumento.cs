@@ -29,6 +29,20 @@ public class CpeDocumento
     public decimal Total { get; set; }
     
     public string MontoEnLetras { get; set; } = string.Empty;
+
+    /// <summary>Catálogo 09. Usado en CreditNote / DiscrepancyResponse.</summary>
+    public string? CodigoMotivo { get; set; }
+
+    public string? DescripcionMotivo { get; set; }
+
+    public CpeDocumentoReferencia? DocumentoReferencia { get; set; }
+}
+
+public class CpeDocumentoReferencia
+{
+    public string TipoComprobante { get; set; } = string.Empty;
+
+    public string SerieCorrelativo { get; set; } = string.Empty;
 }
 
 public class CpeEmisor

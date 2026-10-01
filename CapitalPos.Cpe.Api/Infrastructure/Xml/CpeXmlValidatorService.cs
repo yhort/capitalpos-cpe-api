@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using CapitalPos.Cpe.Api.Domain;
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Interfaces;
 
@@ -19,8 +20,12 @@ public class CpeXmlValidatorService : ICpeXmlValidatorService
             try
             {
                 var documento = XDocument.Parse(xml);
+                var raizLocalName = documento.Root?.Name.LocalName;
 
-                ValidarOrdenInvoiceUblSunat(documento, errores);
+                if (raizLocalName == "CreditNote")
+                    ValidarOrdenCreditNoteUblSunat(documento, errores);
+                else
+                    ValidarOrdenInvoiceUblSunat(documento, errores);
             }
             catch (Exception ex)
             {
@@ -67,8 +72,90 @@ public class CpeXmlValidatorService : ICpeXmlValidatorService
         ValidarAntes(elementos, "TaxTotal", "LegalMonetaryTotal", errores);
         ValidarAntes(elementos, "LegalMonetaryTotal", "InvoiceLine", errores);
         ValidarNoteNoAntesDeLegalMonetaryTotal(elementos, errores);
+        ValidarFormaPagoSegunTipo(elementos, errores);
         ValidarElementosNoReintroducidos(elementos, errores);
         ValidarEstructuraImpuestos(raiz, errores);
+    }
+
+    private static void ValidarOrdenCreditNoteUblSunat(XDocument documento, List<string> errores)
+    {
+        var raiz = documento.Root;
+
+        if (raiz == null || raiz.Name.LocalName != "CreditNote")
+            return;
+
+        var elementos = raiz.Elements().ToList();
+
+        ValidarAntes(elementos, "DocumentCurrencyCode", "DiscrepancyResponse", errores);
+        ValidarAntes(elementos, "DiscrepancyResponse", "BillingReference", errores);
+        ValidarAntes(elementos, "BillingReference", "AccountingSupplierParty", errores);
+        ValidarAntes(
+            elementos,
+            "AccountingSupplierParty",
+            "AccountingCustomerParty",
+            errores
+        );
+        ValidarAntes(elementos, "AccountingCustomerParty", "TaxTotal", errores);
+        ValidarAntes(elementos, "TaxTotal", "LegalMonetaryTotal", errores);
+        ValidarAntes(elementos, "LegalMonetaryTotal", "CreditNoteLine", errores);
+        ValidarNoteNoAntesDeLegalMonetaryTotal(elementos, errores);
+        ValidarAusente(elementos, "LineCountNumeric", errores);
+        ValidarAusente(elementos, "PaymentTerms", errores);
+        ValidarAusente(elementos, "Signature", errores);
+        ValidarEstructuraImpuestos(raiz, errores);
+        ValidarDiscrepancyResponse(raiz, errores);
+        ValidarBillingReference(raiz, errores);
+    }
+
+    private static void ValidarDiscrepancyResponse(XElement raiz, List<string> errores)
+    {
+        var discrepancy = raiz
+            .Elements()
+            .FirstOrDefault(e => e.Name.LocalName == "DiscrepancyResponse");
+
+        if (discrepancy == null)
+        {
+            errores.Add("Falta el elemento UBL DiscrepancyResponse.");
+            return;
+        }
+
+        if (!discrepancy.Elements().Any(e => e.Name.LocalName == "ReferenceID"))
+            errores.Add("DiscrepancyResponse debe contener ReferenceID.");
+
+        if (!discrepancy.Elements().Any(e => e.Name.LocalName == "ResponseCode"))
+            errores.Add("DiscrepancyResponse debe contener ResponseCode.");
+
+        if (!discrepancy.Elements().Any(e => e.Name.LocalName == "Description"))
+            errores.Add("DiscrepancyResponse debe contener Description.");
+    }
+
+    private static void ValidarBillingReference(XElement raiz, List<string> errores)
+    {
+        var billing = raiz
+            .Elements()
+            .FirstOrDefault(e => e.Name.LocalName == "BillingReference");
+
+        if (billing == null)
+        {
+            errores.Add("Falta el elemento UBL BillingReference.");
+            return;
+        }
+
+        var invoiceRef = billing
+            .Elements()
+            .FirstOrDefault(e => e.Name.LocalName == "InvoiceDocumentReference");
+
+        if (invoiceRef == null)
+        {
+            errores.Add("BillingReference debe contener InvoiceDocumentReference.");
+            return;
+        }
+
+        if (!invoiceRef.Elements().Any(e => e.Name.LocalName == "ID"))
+            errores.Add("InvoiceDocumentReference debe contener ID.");
+
+        if (!invoiceRef.Elements().Any(e => e.Name.LocalName == "DocumentTypeCode"))
+            errores.Add("InvoiceDocumentReference debe contener DocumentTypeCode.");
     }
 
     private static void ValidarAntes(
@@ -121,12 +208,24 @@ public class CpeXmlValidatorService : ICpeXmlValidatorService
         }
     }
 
+    private static void ValidarFormaPagoSegunTipo(List<XElement> elementos, List<string> errores)
+    {
+        var tipo = elementos.FirstOrDefault(e => e.Name.LocalName == "InvoiceTypeCode")?.Value;
+        if (tipo == CatalogosSunat.TipoComprobante.Factura)
+        {
+            ValidarAntes(elementos, "AccountingCustomerParty", "PaymentTerms", errores);
+            ValidarAntes(elementos, "PaymentTerms", "TaxTotal", errores);
+            return;
+        }
+
+        ValidarAusente(elementos, "PaymentTerms", errores);
+    }
+
     private static void ValidarElementosNoReintroducidos(
         List<XElement> elementos,
         List<string> errores)
     {
         ValidarAusente(elementos, "LineCountNumeric", errores);
-        ValidarAusente(elementos, "PaymentTerms", errores);
         ValidarAusente(elementos, "Signature", errores);
     }
 

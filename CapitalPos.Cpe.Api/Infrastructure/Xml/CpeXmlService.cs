@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using CapitalPos.Cpe.Api.Domain;
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Helpers;
@@ -20,9 +21,7 @@ public class CpeXmlService : ICpeXmlService
 
     public string GenerarXml(CpeDocumento documento)
     {
-        ICpeXmlGenerator generator = _settings.SimularGeneracionXml
-            ? new CpeXmlBasicoGenerator()
-            : new CpeXmlUblGenerator();
+        ICpeXmlGenerator generator = CrearGenerador(documento);
 
         return generator.Generar(documento);
         /*
@@ -104,5 +103,16 @@ public class CpeXmlService : ICpeXmlService
 
         return xml.ToString();
         */
+    }
+
+    private ICpeXmlGenerator CrearGenerador(CpeDocumento documento)
+    {
+        if (_settings.SimularGeneracionXml)
+            return new CpeXmlBasicoGenerator();
+
+        if (documento.TipoComprobante == CatalogosSunat.TipoComprobante.NotaCredito)
+            return new CpeXmlUblCreditNoteGenerator();
+
+        return new CpeXmlUblGenerator();
     }
 }

@@ -64,9 +64,9 @@ Campos principales:
 
 - `rucEmisor`: RUC del emisor. Tambien puede derivarse de `emisor.ruc`.
 - `emisor`: datos fiscales y direccion del emisor.
-- `tipoComprobante`: codigo SUNAT del comprobante, por ejemplo `01` factura o
-  `03` boleta.
-- `serie`: serie del comprobante, por ejemplo `F001`.
+- `tipoComprobante`: codigo SUNAT del comprobante: `01` factura, `03`
+  boleta o `07` nota de credito.
+- `serie`: serie del comprobante, por ejemplo `F001`, `B001` o `BC01`.
 - `correlativo`: numero correlativo.
 - `fechaEmision`: fecha de emision.
 - `moneda`: moneda, por defecto `PEN`.
@@ -80,6 +80,20 @@ Campos principales:
 - `totalGravada`, `totalExonerada`, `totalInafecta`, `totalIgv`, `total`:
   totales monetarios.
 - `montoEnLetras`: total expresado en letras.
+- `codigoMotivo`: obligatorio si `tipoComprobante` es `07`. Codigo del
+  Catalogo 09 SUNAT (ej. `01` Anulacion de la operacion).
+- `descripcionMotivo`: obligatorio si `tipoComprobante` es `07`. Sustento
+  textual del motivo.
+- `documentoReferencia`: obligatorio si `tipoComprobante` es `07`.
+  - `tipoComprobante`: documento afectado (`01` o `03`).
+  - `serieCorrelativo`: identificador `SERIE-NUMERO` (ej. `B001-41458`).
+
+Reglas de serie para nota de credito (`07`):
+
+- Si el documento afectado es boleta (`03`), la serie de la NC debe iniciar
+  con `B` (ej. `BC01`).
+- Si el documento afectado es factura (`01`), la serie de la NC debe iniciar
+  con `F` (ej. `FC01`).
 
 Ejemplo minimo funcional:
 
@@ -128,6 +142,61 @@ Ejemplo minimo funcional:
   "totalIgv": 18,
   "total": 118,
   "montoEnLetras": "CIENTO DIECIOCHO Y 00/100 SOLES"
+}
+```
+
+Ejemplo minimo de nota de credito (`07`) que anula una boleta:
+
+```json
+{
+  "rucEmisor": "20123456789",
+  "emisor": {
+    "ruc": "20123456789",
+    "razonSocial": "CAPITALPOS DEMO SAC",
+    "nombreComercial": "CAPITALPOS",
+    "ubigeo": "150101",
+    "direccion": "AV. DEMO 123",
+    "departamento": "LIMA",
+    "provincia": "LIMA",
+    "distrito": "LIMA"
+  },
+  "tipoComprobante": "07",
+  "serie": "BC01",
+  "correlativo": 1,
+  "fechaEmision": "2026-08-06T18:00:00",
+  "moneda": "PEN",
+  "tipoOperacion": "0101",
+  "formaPago": "CONTADO",
+  "codigoMotivo": "01",
+  "descripcionMotivo": "Anulacion de la operacion",
+  "documentoReferencia": {
+    "tipoComprobante": "03",
+    "serieCorrelativo": "B001-41458"
+  },
+  "cliente": {
+    "tipoDocumento": "1",
+    "numeroDocumento": "12345678",
+    "razonSocial": "CLIENTE BOLETA"
+  },
+  "items": [
+    {
+      "codigo": "P001",
+      "descripcion": "Producto demo",
+      "unidadMedida": "NIU",
+      "cantidad": 1,
+      "valorUnitario": 100,
+      "precioUnitario": 118,
+      "subtotal": 100,
+      "igv": 18,
+      "total": 118,
+      "codigoAfectacionIgv": "10"
+    }
+  ],
+  "totalGravada": 100,
+  "totalExonerada": 0,
+  "totalInafecta": 0,
+  "totalIgv": 18,
+  "total": 118
 }
 ```
 

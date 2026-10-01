@@ -28,6 +28,30 @@ public class EmitirCpeRequest
     public decimal Total { get; set; }
 
     public string MontoEnLetras { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Catálogo 09 SUNAT. Obligatorio cuando <see cref="TipoComprobante"/> es 07.
+    /// </summary>
+    public string? CodigoMotivo { get; set; }
+
+    /// <summary>
+    /// Sustento textual del motivo de la nota de crédito. Obligatorio para tipo 07.
+    /// </summary>
+    public string? DescripcionMotivo { get; set; }
+
+    /// <summary>
+    /// Documento modificado (boleta/factura). Obligatorio cuando <see cref="TipoComprobante"/> es 07.
+    /// </summary>
+    public DocumentoReferenciaDto? DocumentoReferencia { get; set; }
+}
+
+public class DocumentoReferenciaDto
+{
+    /// <summary>Tipo del comprobante afectado (Catálogo 01): 01 Factura o 03 Boleta.</summary>
+    public string TipoComprobante { get; set; } = string.Empty;
+
+    /// <summary>Serie-correlativo del documento afectado, p. ej. B001-41458.</summary>
+    public string SerieCorrelativo { get; set; } = string.Empty;
 }
 
 public class ClienteDto

@@ -31,7 +31,12 @@ public class CpeXmlResumenService : ICpeXmlResumenService
 
             if (root.Name.LocalName == "Invoice")
             {
-                return ObtenerResumenXmlUbl(root);
+                return ObtenerResumenXmlUbl(root, tipoComprobante: null, lineLocalName: "InvoiceLine");
+            }
+
+            if (root.Name.LocalName == "CreditNote")
+            {
+                return ObtenerResumenXmlUbl(root, tipoComprobante: "07", lineLocalName: "CreditNoteLine");
             }
 
             return CrearError($"Tipo de XML no reconocido. Nodo raíz: {root.Name.LocalName}");
@@ -86,7 +91,10 @@ public class CpeXmlResumenService : ICpeXmlResumenService
         };
     }
 
-    private static CpeXmlResumenResponse ObtenerResumenXmlUbl(XElement root)
+    private static CpeXmlResumenResponse ObtenerResumenXmlUbl(
+        XElement root,
+        string? tipoComprobante,
+        string lineLocalName)
     {
         var cac = XNamespace.Get("urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2");
         var cbc = XNamespace.Get("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
@@ -132,14 +140,16 @@ public class CpeXmlResumenService : ICpeXmlResumenService
             ?.Element(cbc + "RegistrationName")
             ?.Value ?? string.Empty;
 
+        var tipo = tipoComprobante ?? ObtenerValor(root, cbc + "InvoiceTypeCode");
+
         return new CpeXmlResumenResponse
         {
             Ok = true,
             Mensaje = "Resumen XML UBL leído correctamente.",
             TipoXml = "UBL",
 
-            NumeroComprobante = $"{rucEmisor}-{ObtenerValor(root, cbc + "InvoiceTypeCode")}-{serie}-{correlativo}",
-            TipoComprobante = ObtenerValor(root, cbc + "InvoiceTypeCode"),
+            NumeroComprobante = $"{rucEmisor}-{tipo}-{serie}-{correlativo}",
+            TipoComprobante = tipo,
             Serie = serie,
             Correlativo = correlativo,
 
@@ -156,7 +166,7 @@ public class CpeXmlResumenService : ICpeXmlResumenService
             TotalIgv = ObtenerDecimal(taxTotal, cbc + "TaxAmount"),
             Total = ObtenerDecimal(monetaryTotal, cbc + "PayableAmount"),
 
-            CantidadItems = root.Elements(cac + "InvoiceLine").Count()
+            CantidadItems = root.Elements(cac + lineLocalName).Count()
         };
     }
 

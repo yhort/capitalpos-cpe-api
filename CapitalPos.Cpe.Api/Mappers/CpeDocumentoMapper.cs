@@ -1,3 +1,4 @@
+using CapitalPos.Cpe.Api.Domain;
 using CapitalPos.Cpe.Api.Domain.Cpe;
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Helpers;
@@ -8,6 +9,8 @@ public static class CpeDocumentoMapper
 {
     public static CpeDocumento FromRequest(EmitirCpeRequest request)
     {
+        CpeReceptorSunat.NormalizarSiCorresponde(request);
+
         return new CpeDocumento
         {
             NumeroComprobante = CpeNombreHelper.ObtenerNumeroComprobante(request),
@@ -72,7 +75,17 @@ public static class CpeDocumentoMapper
             
             MontoEnLetras = string.IsNullOrWhiteSpace(request.MontoEnLetras)
                 ? NumeroALetrasHelper.ConvertirMonto(request.Total, request.Moneda)
-                : request.MontoEnLetras
+                : request.MontoEnLetras,
+
+            CodigoMotivo = request.CodigoMotivo,
+            DescripcionMotivo = request.DescripcionMotivo,
+            DocumentoReferencia = request.DocumentoReferencia is null
+                ? null
+                : new CpeDocumentoReferencia
+                {
+                    TipoComprobante = request.DocumentoReferencia.TipoComprobante,
+                    SerieCorrelativo = request.DocumentoReferencia.SerieCorrelativo
+                }
         };
     }
 }

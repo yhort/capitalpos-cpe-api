@@ -44,6 +44,7 @@ public class CpeXmlUblGenerator : ICpeXmlGenerator
                 CrearDocumentCurrencyCode(documento, cbc),
                 CrearEmisor(documento, cac, cbc),
                 CrearCliente(documento, cac, cbc),
+                CrearFormaPago(documento, cac, cbc),
                 CrearImpuestos(documento, cac, cbc),
                 CrearTotales(documento, cac, cbc),
                 CrearItems(documento, cac, cbc)
@@ -436,6 +437,11 @@ public class CpeXmlUblGenerator : ICpeXmlGenerator
         XNamespace cac,
         XNamespace cbc)
     {
+        if (documento.TipoComprobante != CatalogosSunat.TipoComprobante.Factura)
+        {
+            yield break;
+        }
+
         var formaPago = documento.FormaPago.ToUpper();
 
         if (formaPago == CatalogosSunat.FormaPago.Contado)

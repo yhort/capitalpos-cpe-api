@@ -28,6 +28,19 @@ public class CatalogosController : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("motivos-nota-credito")]
+    public IActionResult ObtenerMotivosNotaCredito()
+    {
+        var data = _catalogosService.ObtenerMotivosNotaCredito();
+
+        var response = ApiResponse<List<CatalogoItemDto>>.Success(
+            "Motivos de nota de crédito obtenidos correctamente.",
+            data
+        );
+
+        return Ok(response);
+    }
+
     [HttpGet("tipos-documento-identidad")]
     public IActionResult ObtenerTiposDocumentoIdentidad()
     {

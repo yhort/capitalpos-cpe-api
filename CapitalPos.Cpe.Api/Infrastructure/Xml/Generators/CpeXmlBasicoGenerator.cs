@@ -31,6 +31,14 @@ public class CpeXmlBasicoGenerator : ICpeXmlGenerator
                     new XElement("Observacion", documento.Observacion ?? string.Empty),
                     new XElement("FormaPago", documento.FormaPago),
                     new XElement("MontoPendientePago", documento.MontoPendientePago),
+                    new XElement("CodigoMotivo", documento.CodigoMotivo ?? string.Empty),
+                    new XElement("DescripcionMotivo", documento.DescripcionMotivo ?? string.Empty),
+                    documento.DocumentoReferencia is null
+                        ? new XElement("DocumentoReferencia")
+                        : new XElement("DocumentoReferencia",
+                            new XElement("TipoComprobante", documento.DocumentoReferencia.TipoComprobante),
+                            new XElement("SerieCorrelativo", documento.DocumentoReferencia.SerieCorrelativo)
+                        ),
                     new XElement("Cuotas",
                         documento.Cuotas.Select(cuota =>
                             new XElement("Cuota",

@@ -69,7 +69,9 @@ public class ApiKeyMiddleware
             return;
         }
 
-        if (apiKeyRecibida != _settings.ApiKey)
+        var apiKeyEsperada = _settings.ApiKey.Trim();
+        var apiKeyTrim = apiKeyRecibida.ToString().Split(',')[0].Trim();
+        if (!string.Equals(apiKeyTrim, apiKeyEsperada, StringComparison.Ordinal))
         {
             _logger.LogWarning("Solicitud rechazada. API Key inválida. Ruta: {Ruta}", path);
 

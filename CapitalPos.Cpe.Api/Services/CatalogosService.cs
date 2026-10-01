@@ -18,6 +18,78 @@ public class CatalogosService
             {
                 Codigo = CatalogosSunat.TipoComprobante.Boleta,
                 Descripcion = "Boleta"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.TipoComprobante.NotaCredito,
+                Descripcion = "Nota de crédito"
+            }
+        };
+    }
+
+    public List<CatalogoItemDto> ObtenerMotivosNotaCredito()
+    {
+        return new List<CatalogoItemDto>
+        {
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.AnulacionDeLaOperacion,
+                Descripcion = "Anulación de la operación"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.AnulacionPorErrorEnElRuc,
+                Descripcion = "Anulación por error en el RUC"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.CorreccionPorErrorEnLaDescripcion,
+                Descripcion = "Corrección por error en la descripción"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.DescuentoGlobal,
+                Descripcion = "Descuento global"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.DescuentoPorItem,
+                Descripcion = "Descuento por ítem"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.DevolucionTotal,
+                Descripcion = "Devolución total"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.DevolucionPorItem,
+                Descripcion = "Devolución por ítem"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.Bonificacion,
+                Descripcion = "Bonificación"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.DisminucionEnElValor,
+                Descripcion = "Disminución en el valor"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.OtrosConceptos,
+                Descripcion = "Otros conceptos"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.AjustesDeOperacionesDeExportacion,
+                Descripcion = "Ajustes de operaciones de exportación"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.MotivoNotaCredito.AjustesAfectosAlIvap,
+                Descripcion = "Ajustes afectos al IVAP"
             }
         };
     }
@@ -35,6 +107,11 @@ public class CatalogosService
             {
                 Codigo = CatalogosSunat.TipoDocumentoIdentidad.Ruc,
                 Descripcion = "RUC"
+            },
+            new()
+            {
+                Codigo = CatalogosSunat.TipoDocumentoIdentidad.SinIdentificacion,
+                Descripcion = "Sin documento (consumidor final / boleta ≤ S/ 700)"
             }
         };
     }
