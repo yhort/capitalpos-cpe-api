@@ -136,9 +136,10 @@ public class CpeEmisionService
             var comprobante = CpeNombreHelper.ObtenerNumeroComprobante(request);
 
             _logger.LogInformation(
-                "Iniciando emisión simulada de CPE. Comprobante: {Comprobante}, RUC: {Ruc}",
+                "Iniciando emisión CPE. Comprobante: {Comprobante}, RUC: {Ruc}, Modo: {Modo}",
                 comprobante,
-                rucEmisor);
+                rucEmisor,
+                _settings.Modo);
 
             AgregarEtapa(
                 etapas,

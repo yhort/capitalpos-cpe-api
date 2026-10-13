@@ -77,7 +77,8 @@ public class CpeSunatService : ICpeSunatService
             };
         }
 
-        var erroresConfiguracion = ValidarConfiguracionSunat();
+        var rucEmisor = ExtraerRucDesdeNombreZip(nombreZip);
+        var erroresConfiguracion = ValidarConfiguracionSunat(rucEmisor);
 
         if (erroresConfiguracion.Count > 0)
         {
@@ -131,13 +132,20 @@ public class CpeSunatService : ICpeSunatService
         }
     }
 
-    private List<string> ValidarConfiguracionSunat()
+    private List<string> ValidarConfiguracionSunat(string? rucEmisor = null)
     {
         var errores = new List<string>();
 
         if (string.IsNullOrWhiteSpace(_settings.UsuarioSol))
         {
             errores.Add("El usuario SOL es obligatorio para enviar a SUNAT.");
+        }
+        else if (!string.IsNullOrWhiteSpace(rucEmisor)
+                 && !_settings.UsuarioSol.Trim().StartsWith(rucEmisor.Trim(), StringComparison.Ordinal))
+        {
+            errores.Add(
+                $"UsuarioSol no corresponde al RUC del comprobante ({rucEmisor}). " +
+                "El usuario SOL debe iniciar con el mismo RUC del emisor (ej. {RUC}{USUARIO}).");
         }
 
         if (string.IsNullOrWhiteSpace(_settings.ClaveSol))
@@ -153,6 +161,24 @@ public class CpeSunatService : ICpeSunatService
         }
 
         return errores;
+    }
+
+    private static string? ExtraerRucDesdeNombreZip(string nombreZip)
+    {
+        var nombre = Path.GetFileNameWithoutExtension(nombreZip.Trim());
+        if (nombre.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
+        {
+            nombre = nombre[2..];
+        }
+
+        var partes = nombre.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (partes.Length == 0)
+        {
+            return null;
+        }
+
+        var ruc = partes[0];
+        return ruc.Length == 11 && ruc.All(char.IsDigit) ? ruc : null;
     }
     
     private static string CrearSoapEnvelopeSendBill(
