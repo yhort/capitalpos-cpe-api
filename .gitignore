@@ -21,8 +21,9 @@ obj/
 *.crt
 
 # Config sensibles
-appsettings.Production.json
-appsettings.Local.json
+**/appsettings.Production.json
+!**/appsettings.Production.example.json
+**/appsettings.Local.json
 
 CapitalPos.Cpe.Api/Legacy/CapitalPos.Cpe.Api/Legacy/
 

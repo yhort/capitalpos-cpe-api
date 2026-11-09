@@ -50,11 +50,12 @@ public class GlobalExceptionMiddleware
                 $"Código de seguimiento: {correlationId}"
             };
 
-            if (_environment.IsDevelopment())
+            if (!string.IsNullOrWhiteSpace(ex.Message))
             {
                 errores.Add(ex.Message);
             }
-            else
+
+            if (!_environment.IsDevelopment())
             {
                 errores.Add("Ocurrió un error interno inesperado.");
             }
