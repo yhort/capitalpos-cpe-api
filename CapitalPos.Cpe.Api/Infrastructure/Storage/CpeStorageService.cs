@@ -1,193 +1,100 @@
-namespace CapitalPos.Cpe.Api.Infrastructure.Storage;
-using CapitalPos.Cpe.Api.Settings;
-using Microsoft.Extensions.Options;
-using CapitalPos.Cpe.Api.Interfaces;
 using System.IO.Compression;
 using CapitalPos.Cpe.Api.Dtos;
+using CapitalPos.Cpe.Api.Interfaces;
+using CapitalPos.Cpe.Api.Settings;
+using Microsoft.Extensions.Options;
+
+namespace CapitalPos.Cpe.Api.Infrastructure.Storage;
 
 public class CpeStorageService : ICpeStorageService
 {
     private readonly CpeSettings _settings;
+    private readonly IEmisorContextAccessor _emisorContextAccessor;
 
-    public CpeStorageService(IOptions<CpeSettings> options)
+    public CpeStorageService(
+        IOptions<CpeSettings> options,
+        IEmisorContextAccessor emisorContextAccessor)
     {
         _settings = options.Value;
+        _emisorContextAccessor = emisorContextAccessor;
     }
 
-    public string ObtenerCarpetaXml()
+    public string ObtenerCarpetaXml(string? ruc = null)
+        => ObtenerCarpeta("XML", ruc);
+
+    public string GuardarXml(string nombreArchivo, string contenidoXml, string? ruc = null)
     {
-        var carpeta = Path.Combine(_settings.RutaArchivos, _settings.Modo, "XML");
-
-        if (!Directory.Exists(carpeta))
-            Directory.CreateDirectory(carpeta);
-
-        return carpeta;
-    }
-
-    public string GuardarXml(string nombreArchivo, string contenidoXml)
-    {
-        var carpetaXml = ObtenerCarpetaXml();
+        var carpetaXml = ObtenerCarpetaXml(ruc);
         var rutaArchivo = Path.Combine(carpetaXml, nombreArchivo);
-
         File.WriteAllText(rutaArchivo, contenidoXml);
-
         return rutaArchivo;
     }
-    
-    public List<string> ListarXml()
-    {
-        var carpetaXml = ObtenerCarpetaXml();
 
-        return Directory
-            .GetFiles(carpetaXml, "*.xml")
-            .Select(Path.GetFileName)
-            .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
-            .Select(nombre => nombre!)
-            .ToList();
-    }
-    
-    public string? LeerXml(string nombreArchivo)
+    public List<string> ListarXml(string? ruc = null)
+        => ListarNombres(ObtenerCarpetaXml(ruc), "*.xml");
+
+    public string? LeerXml(string nombreArchivo, string? ruc = null)
     {
-        if (!NombreArchivoValido(nombreArchivo))
+        if (!NombreArchivoValido(nombreArchivo, ".xml"))
             return null;
 
-        var carpetaXml = ObtenerCarpetaXml();
-        var rutaArchivo = Path.Combine(carpetaXml, nombreArchivo);
+        var rutaArchivo = Path.Combine(ObtenerCarpetaXml(ruc), nombreArchivo);
+        return File.Exists(rutaArchivo) ? File.ReadAllText(rutaArchivo) : null;
+    }
 
-        if (!File.Exists(rutaArchivo))
+    public string? ObtenerRutaXml(string nombreArchivo, string? ruc = null)
+    {
+        if (!NombreArchivoValido(nombreArchivo, ".xml"))
             return null;
 
-        return File.ReadAllText(rutaArchivo);
-    }
-    
-    private static bool NombreArchivoValido(string nombreArchivo)
-    {
-        if (string.IsNullOrWhiteSpace(nombreArchivo))
-            return false;
-
-        if (nombreArchivo.Contains(".."))
-            return false;
-
-        if (nombreArchivo.Contains("/") || nombreArchivo.Contains("\\"))
-            return false;
-
-        if (!nombreArchivo.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return true;
-    }
-    
-    public string? ObtenerRutaXml(string nombreArchivo)
-    {
-        if (!NombreArchivoValido(nombreArchivo))
-            return null;
-
-        var carpetaXml = ObtenerCarpetaXml();
-        var rutaArchivo = Path.Combine(carpetaXml, nombreArchivo);
-
-        if (!File.Exists(rutaArchivo))
-            return null;
-
-        return rutaArchivo;
-    }
-    
-    private static bool NombreArchivoZipValido(string nombreArchivo)
-    {
-        if (string.IsNullOrWhiteSpace(nombreArchivo))
-            return false;
-
-        if (nombreArchivo.Contains(".."))
-            return false;
-
-        if (nombreArchivo.Contains("/") || nombreArchivo.Contains("\\"))
-            return false;
-
-        if (!nombreArchivo.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return true;
-    }
-    
-    public string ObtenerCarpetaCdr()
-    {
-        var carpeta = Path.Combine(_settings.RutaArchivos, _settings.Modo, "CDR");
-
-        if (!Directory.Exists(carpeta))
-            Directory.CreateDirectory(carpeta);
-
-        return carpeta;
+        var rutaArchivo = Path.Combine(ObtenerCarpetaXml(ruc), nombreArchivo);
+        return File.Exists(rutaArchivo) ? rutaArchivo : null;
     }
 
-    public string GuardarCdr(string nombreArchivo, string contenido)
-    {
-        var carpetaCdr = ObtenerCarpetaCdr();
-        var rutaArchivo = Path.Combine(carpetaCdr, nombreArchivo);
+    public string ObtenerCarpetaCdr(string? ruc = null)
+        => ObtenerCarpeta("CDR", ruc);
 
+    public string GuardarCdr(string nombreArchivo, string contenido, string? ruc = null)
+    {
+        var rutaArchivo = Path.Combine(ObtenerCarpetaCdr(ruc), nombreArchivo);
         File.WriteAllText(rutaArchivo, contenido);
-
         return rutaArchivo;
     }
-    
-    public string GuardarCdrBytes(string nombreArchivo, byte[] contenido)
+
+    public string GuardarCdrBytes(string nombreArchivo, byte[] contenido, string? ruc = null)
     {
-        if (!NombreArchivoZipValido(nombreArchivo))
+        if (!NombreArchivoValido(nombreArchivo, ".zip"))
             throw new ArgumentException("Nombre de CDR inválido.", nameof(nombreArchivo));
 
-        var carpetaCdr = ObtenerCarpetaCdr();
-        var rutaArchivo = Path.Combine(carpetaCdr, nombreArchivo);
-
+        var rutaArchivo = Path.Combine(ObtenerCarpetaCdr(ruc), nombreArchivo);
         File.WriteAllBytes(rutaArchivo, contenido);
-
         return rutaArchivo;
     }
 
-    public List<string> ListarCdr()
-    {
-        var carpetaCdr = ObtenerCarpetaCdr();
+    public List<string> ListarCdr(string? ruc = null)
+        => ListarNombres(ObtenerCarpetaCdr(ruc), "*.zip");
 
-        return Directory
-            .GetFiles(carpetaCdr, "*.zip")
-            .Select(Path.GetFileName)
-            .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
-            .Select(nombre => nombre!)
-            .ToList();
-    }
-
-    public string? ObtenerRutaCdr(string nombreArchivo)
+    public string? ObtenerRutaCdr(string nombreArchivo, string? ruc = null)
     {
-        if (!NombreArchivoZipValido(nombreArchivo))
+        if (!NombreArchivoValido(nombreArchivo, ".zip"))
             return null;
 
-        var carpetaCdr = ObtenerCarpetaCdr();
-        var rutaArchivo = Path.Combine(carpetaCdr, nombreArchivo);
-
-        if (!File.Exists(rutaArchivo))
-            return null;
-
-        return rutaArchivo;
-    }
-    
-    public string ObtenerCarpetaZip()
-    {
-        var carpeta = Path.Combine(_settings.RutaArchivos, _settings.Modo, "ZIP");
-
-        if (!Directory.Exists(carpeta))
-            Directory.CreateDirectory(carpeta);
-
-        return carpeta;
+        var rutaArchivo = Path.Combine(ObtenerCarpetaCdr(ruc), nombreArchivo);
+        return File.Exists(rutaArchivo) ? rutaArchivo : null;
     }
 
-    public string GuardarZipDesdeXml(string nombreXml)
+    public string ObtenerCarpetaZip(string? ruc = null)
+        => ObtenerCarpeta("ZIP", ruc);
+
+    public string GuardarZipDesdeXml(string nombreXml, string? ruc = null)
     {
-        if (!NombreArchivoValido(nombreXml))
+        if (!NombreArchivoValido(nombreXml, ".xml"))
             throw new ArgumentException("Nombre de XML inválido.", nameof(nombreXml));
 
-        var rutaXml = ObtenerRutaXml(nombreXml);
+        var rutaXml = ObtenerRutaXml(nombreXml, ruc)
+                      ?? throw new FileNotFoundException("No se encontró el XML para comprimir.", nombreXml);
 
-        if (rutaXml == null)
-            throw new FileNotFoundException("No se encontró el XML para comprimir.", nombreXml);
-
-        var carpetaZip = ObtenerCarpetaZip();
+        var carpetaZip = ObtenerCarpetaZip(ruc);
         var nombreZip = nombreXml.Replace(".xml", ".zip", StringComparison.OrdinalIgnoreCase);
         var rutaZip = Path.Combine(carpetaZip, nombreZip);
 
@@ -200,76 +107,32 @@ public class CpeStorageService : ICpeStorageService
         return rutaZip;
     }
 
-    public List<string> ListarZip()
-    {
-        var carpetaZip = ObtenerCarpetaZip();
+    public List<string> ListarZip(string? ruc = null)
+        => ListarNombres(ObtenerCarpetaZip(ruc), "*.zip");
 
-        return Directory
-            .GetFiles(carpetaZip, "*.zip")
-            .Select(Path.GetFileName)
-            .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
-            .Select(nombre => nombre!)
-            .ToList();
-    }
-
-    public string? ObtenerRutaZip(string nombreArchivo)
+    public string? ObtenerRutaZip(string nombreArchivo, string? ruc = null)
     {
-        if (!NombreArchivoZipValido(nombreArchivo))
+        if (!NombreArchivoValido(nombreArchivo, ".zip"))
             return null;
 
-        var carpetaZip = ObtenerCarpetaZip();
-        var rutaArchivo = Path.Combine(carpetaZip, nombreArchivo);
-
-        if (!File.Exists(rutaArchivo))
-            return null;
-
-        return rutaArchivo;
-    }
-    
-    public List<CpeArchivoInfoDto> ListarXmlInfo()
-    {
-        return ListarArchivosInfo(ObtenerCarpetaXml(), "*.xml");
+        var rutaArchivo = Path.Combine(ObtenerCarpetaZip(ruc), nombreArchivo);
+        return File.Exists(rutaArchivo) ? rutaArchivo : null;
     }
 
-    public List<CpeArchivoInfoDto> ListarZipInfo()
-    {
-        return ListarArchivosInfo(ObtenerCarpetaZip(), "*.zip");
-    }
+    public List<CpeArchivoInfoDto> ListarXmlInfo(string? ruc = null)
+        => ListarArchivosInfo(ObtenerCarpetaXml(ruc), "*.xml");
 
-    public List<CpeArchivoInfoDto> ListarCdrInfo()
-    {
-        return ListarArchivosInfo(ObtenerCarpetaCdr(), "*.zip");
-    }
-    
-    private static List<CpeArchivoInfoDto> ListarArchivosInfo(string carpeta, string patron)
-    {
-        if (!Directory.Exists(carpeta))
-            return new List<CpeArchivoInfoDto>();
+    public List<CpeArchivoInfoDto> ListarZipInfo(string? ruc = null)
+        => ListarArchivosInfo(ObtenerCarpetaZip(ruc), "*.zip");
 
-        return Directory.GetFiles(carpeta, patron)
-            .Select(ruta =>
-            {
-                var info = new FileInfo(ruta);
+    public List<CpeArchivoInfoDto> ListarCdrInfo(string? ruc = null)
+        => ListarArchivosInfo(ObtenerCarpetaCdr(ruc), "*.zip");
 
-                return new CpeArchivoInfoDto
-                {
-                    Nombre = info.Name,
-                    Extension = info.Extension,
-                    TamanoBytes = info.Length,
-                    TamanoKb = Math.Round(info.Length / 1024m, 2),
-                    FechaCreacion = info.CreationTime,
-                    FechaModificacion = info.LastWriteTime
-                };
-            })
-            .OrderByDescending(a => a.FechaModificacion)
-            .ToList();
-    }
-    
-    public CpeArchivosResumenDto ObtenerResumenArchivos()
+    public CpeArchivosResumenDto ObtenerResumenArchivos(string? ruc = null)
     {
-        var xml = ListarXmlInfo();
-        var zip = ListarZipInfo();
-        var cdr = ListarCdrInfo();
+        var xml = ListarXmlInfo(ruc);
+        var zip = ListarZipInfo(ruc);
+        var cdr = ListarCdrInfo(ruc);
 
         return new CpeArchivosResumenDto
         {
@@ -279,37 +142,21 @@ public class CpeStorageService : ICpeStorageService
             FechaConsulta = DateTime.Now
         };
     }
-    
-    private static CpeArchivosGrupoResumenDto CrearResumenGrupo(List<CpeArchivoInfoDto> archivos)
-    {
-        var ultimoArchivo = archivos
-            .OrderByDescending(a => a.FechaModificacion)
-            .FirstOrDefault();
 
-        var tamanoTotalBytes = archivos.Sum(a => a.TamanoBytes);
-
-        return new CpeArchivosGrupoResumenDto
-        {
-            Cantidad = archivos.Count,
-            TamanoTotalBytes = tamanoTotalBytes,
-            TamanoTotalKb = Math.Round(tamanoTotalBytes / 1024m, 2),
-            UltimoArchivo = ultimoArchivo?.Nombre,
-            FechaUltimoArchivo = ultimoArchivo?.FechaModificacion
-        };
-    }
-    
-    public CpeLimpiezaArchivosResponse LimpiarArchivosAntiguos(int diasAntiguedad, bool ejecutar)
+    public CpeLimpiezaArchivosResponse LimpiarArchivosAntiguos(
+        int diasAntiguedad,
+        bool ejecutar,
+        string? ruc = null)
     {
         if (diasAntiguedad <= 0)
             diasAntiguedad = 7;
 
         var fechaLimite = DateTime.Now.AddDays(-diasAntiguedad);
-
         var archivos = new List<CpeArchivoLimpiezaDto>();
 
-        archivos.AddRange(ObtenerArchivosParaLimpieza("XML", ObtenerCarpetaXml(), "*.xml", fechaLimite));
-        archivos.AddRange(ObtenerArchivosParaLimpieza("ZIP", ObtenerCarpetaZip(), "*.zip", fechaLimite));
-        archivos.AddRange(ObtenerArchivosParaLimpieza("CDR", ObtenerCarpetaCdr(), "*.zip", fechaLimite));
+        archivos.AddRange(ObtenerArchivosParaLimpieza("XML", ObtenerCarpetaXml(ruc), "*.xml", fechaLimite));
+        archivos.AddRange(ObtenerArchivosParaLimpieza("ZIP", ObtenerCarpetaZip(ruc), "*.zip", fechaLimite));
+        archivos.AddRange(ObtenerArchivosParaLimpieza("CDR", ObtenerCarpetaCdr(ruc), "*.zip", fechaLimite));
 
         if (ejecutar)
         {
@@ -355,7 +202,116 @@ public class CpeStorageService : ICpeStorageService
             Archivos = archivos
         };
     }
-    
+
+    private string ObtenerCarpeta(string tipo, string? ruc)
+    {
+        var rucEfectivo = ResolverRuc(ruc);
+        var modo = ResolverModo();
+
+        string carpeta;
+        if (!string.IsNullOrWhiteSpace(rucEfectivo))
+        {
+            carpeta = Path.Combine(_settings.RutaArchivos, modo, rucEfectivo, tipo);
+        }
+        else
+        {
+            // Compatibilidad legacy: sin RUC usa carpeta plana del modo.
+            carpeta = Path.Combine(_settings.RutaArchivos, modo, tipo);
+        }
+
+        if (!Directory.Exists(carpeta))
+            Directory.CreateDirectory(carpeta);
+
+        return carpeta;
+    }
+
+    private string ResolverModo()
+    {
+        var ambiente = _emisorContextAccessor.Current?.Ambiente;
+        if (!string.IsNullOrWhiteSpace(ambiente))
+            return ambiente.Trim().ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(_settings.Modo)
+            ? "BETA"
+            : _settings.Modo.Trim().ToUpperInvariant();
+    }
+
+    private string? ResolverRuc(string? ruc)
+    {
+        if (!string.IsNullOrWhiteSpace(ruc))
+            return ruc.Trim();
+
+        return _emisorContextAccessor.Current?.Ruc;
+    }
+
+    private static List<string> ListarNombres(string carpeta, string patron)
+    {
+        if (!Directory.Exists(carpeta))
+            return new List<string>();
+
+        return Directory
+            .GetFiles(carpeta, patron)
+            .Select(Path.GetFileName)
+            .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
+            .Select(nombre => nombre!)
+            .ToList();
+    }
+
+    private static bool NombreArchivoValido(string nombreArchivo, string extension)
+    {
+        if (string.IsNullOrWhiteSpace(nombreArchivo))
+            return false;
+
+        if (nombreArchivo.Contains(".."))
+            return false;
+
+        if (nombreArchivo.Contains('/') || nombreArchivo.Contains('\\'))
+            return false;
+
+        return nombreArchivo.EndsWith(extension, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<CpeArchivoInfoDto> ListarArchivosInfo(string carpeta, string patron)
+    {
+        if (!Directory.Exists(carpeta))
+            return new List<CpeArchivoInfoDto>();
+
+        return Directory.GetFiles(carpeta, patron)
+            .Select(ruta =>
+            {
+                var info = new FileInfo(ruta);
+                return new CpeArchivoInfoDto
+                {
+                    Nombre = info.Name,
+                    Extension = info.Extension,
+                    TamanoBytes = info.Length,
+                    TamanoKb = Math.Round(info.Length / 1024m, 2),
+                    FechaCreacion = info.CreationTime,
+                    FechaModificacion = info.LastWriteTime
+                };
+            })
+            .OrderByDescending(a => a.FechaModificacion)
+            .ToList();
+    }
+
+    private static CpeArchivosGrupoResumenDto CrearResumenGrupo(List<CpeArchivoInfoDto> archivos)
+    {
+        var ultimoArchivo = archivos
+            .OrderByDescending(a => a.FechaModificacion)
+            .FirstOrDefault();
+
+        var tamanoTotalBytes = archivos.Sum(a => a.TamanoBytes);
+
+        return new CpeArchivosGrupoResumenDto
+        {
+            Cantidad = archivos.Count,
+            TamanoTotalBytes = tamanoTotalBytes,
+            TamanoTotalKb = Math.Round(tamanoTotalBytes / 1024m, 2),
+            UltimoArchivo = ultimoArchivo?.Nombre,
+            FechaUltimoArchivo = ultimoArchivo?.FechaModificacion
+        };
+    }
+
     private static List<CpeArchivoLimpiezaDto> ObtenerArchivosParaLimpieza(
         string tipo,
         string carpeta,

@@ -15,5 +15,7 @@ public static class CpeEstados
     public const string ErrorSunat = "ERROR_SUNAT";
     public const string ErrorCdr = "ERROR_CDR";
     public const string ErrorInterno = "ERROR_INTERNO";
+    public const string ErrorEmisor = "ERROR_EMISOR";
+    public const string YaEmitido = "YA_EMITIDO";
 }
 

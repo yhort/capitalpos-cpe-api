@@ -15,7 +15,7 @@ public class CpeCdrService : ICpeCdrService
         _storageService = storageService;
     }
 
-    public CpeCdrResultadoDto LeerCdr(string nombreCdr)
+    public CpeCdrResultadoDto LeerCdr(string nombreCdr, string? ruc = null)
     {
         if (string.IsNullOrWhiteSpace(nombreCdr))
         {
@@ -31,7 +31,7 @@ public class CpeCdrService : ICpeCdrService
             };
         }
 
-        var rutaCdr = _storageService.ObtenerRutaCdr(nombreCdr);
+        var rutaCdr = _storageService.ObtenerRutaCdr(nombreCdr, ruc);
 
         if (string.IsNullOrWhiteSpace(rutaCdr))
         {

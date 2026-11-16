@@ -1,9 +1,10 @@
+using CapitalPos.Cpe.Api.Domain;
+using CapitalPos.Cpe.Api.Domain.Tenancy;
 using CapitalPos.Cpe.Api.Dtos;
+using CapitalPos.Cpe.Api.Helpers;
 using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Settings;
 using Microsoft.Extensions.Options;
-using CapitalPos.Cpe.Api.Helpers;
-using CapitalPos.Cpe.Api.Domain;
 using System.Security;
 using System.Text;
 using System.Xml.Linq;
@@ -16,18 +17,23 @@ public class CpeSunatService : ICpeSunatService
     private readonly ICpeStorageService _storageService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ICpeCdrService _cdrService;
+    private readonly IEmisorContextAccessor _emisorContextAccessor;
 
-    public CpeSunatService(IOptions<CpeSettings> options, ICpeStorageService storageService, 
+    public CpeSunatService(
+        IOptions<CpeSettings> options,
+        ICpeStorageService storageService,
         IHttpClientFactory httpClientFactory,
-        ICpeCdrService cdrService)
+        ICpeCdrService cdrService,
+        IEmisorContextAccessor emisorContextAccessor)
     {
         _settings = options.Value;
         _storageService = storageService;
         _httpClientFactory = httpClientFactory;
         _cdrService = cdrService;
+        _emisorContextAccessor = emisorContextAccessor;
     }
 
-    public CpeSunatResponse EnviarComprobante(string nombreZip)
+    public CpeSunatResponse EnviarComprobante(string nombreZip, EmisorRuntimeContext? context = null)
     {
         if (string.IsNullOrWhiteSpace(nombreZip))
         {
@@ -44,7 +50,10 @@ public class CpeSunatService : ICpeSunatService
             };
         }
 
-        var rutaZip = _storageService.ObtenerRutaZip(nombreZip);
+        context ??= _emisorContextAccessor.Current;
+        var ruc = context?.Ruc ?? ExtraerRucDesdeNombreZip(nombreZip);
+
+        var rutaZip = _storageService.ObtenerRutaZip(nombreZip, ruc);
 
         if (string.IsNullOrWhiteSpace(rutaZip))
         {
@@ -63,8 +72,9 @@ public class CpeSunatService : ICpeSunatService
 
         if (_settings.SimularEnvioSunat)
         {
-            var urlSunat = _settings.ObtenerUrlSunat();
+            var urlSunat = context?.UrlSunat ?? _settings.ObtenerUrlSunat();
             var nombreCdr = CpeNombreHelper.ObtenerNombreCdr(nombreZip);
+            var modo = context?.Ambiente ?? _settings.Modo;
 
             return new CpeSunatResponse
             {
@@ -72,15 +82,57 @@ public class CpeSunatService : ICpeSunatService
                 Estado = CpeEstados.Simulado,
                 CodigoSunat = "0",
                 MensajeSunat =
-                    $"Comprobante aceptado en modo simulación. Modo: {_settings.Modo}. URL SUNAT: {urlSunat}",
+                    $"Comprobante aceptado en modo simulación. Modo: {modo}. URL SUNAT: {urlSunat}",
                 NombreCdr = nombreCdr
             };
         }
 
-        var rucEmisor = ExtraerRucDesdeNombreZip(nombreZip);
-        var erroresConfiguracion = ValidarConfiguracionSunat(rucEmisor);
+        string usuarioSol;
+        string claveSol;
+        string urlEnvio;
 
-        if (erroresConfiguracion.Count > 0)
+        if (context != null)
+        {
+            usuarioSol = context.UsuarioSol;
+            claveSol = context.ClaveSol;
+            urlEnvio = context.UrlSunat;
+        }
+        else if (_settings.PermitirCredencialesLegacy)
+        {
+            var erroresConfiguracion = ValidarConfiguracionSunatLegacy(ruc);
+            if (erroresConfiguracion.Count > 0)
+            {
+                return new CpeSunatResponse
+                {
+                    Ok = false,
+                    Estado = CpeEstados.ErrorSunat,
+                    CodigoSunat = string.Empty,
+                    MensajeSunat = "No se puede enviar a SUNAT porque la configuración no está completa.",
+                    Errores = erroresConfiguracion
+                };
+            }
+
+            usuarioSol = _settings.UsuarioSol;
+            claveSol = _settings.ClaveSol;
+            urlEnvio = _settings.ObtenerUrlSunat();
+        }
+        else
+        {
+            return new CpeSunatResponse
+            {
+                Ok = false,
+                Estado = CpeEstados.ErrorSunat,
+                CodigoSunat = string.Empty,
+                MensajeSunat = "No se puede enviar a SUNAT porque no hay contexto de emisor.",
+                Errores = new List<string>
+                {
+                    "Debe resolver el emisor (RUC) antes de enviar o habilitar credenciales legacy."
+                }
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(usuarioSol) || string.IsNullOrWhiteSpace(claveSol) ||
+            string.IsNullOrWhiteSpace(urlEnvio))
         {
             return new CpeSunatResponse
             {
@@ -88,21 +140,38 @@ public class CpeSunatService : ICpeSunatService
                 Estado = CpeEstados.ErrorSunat,
                 CodigoSunat = string.Empty,
                 MensajeSunat = "No se puede enviar a SUNAT porque la configuración no está completa.",
-                Errores = erroresConfiguracion
+                Errores = new List<string> { "Usuario SOL, Clave SOL y URL SUNAT son obligatorios." }
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(ruc)
+            && !usuarioSol.Trim().StartsWith(ruc.Trim(), StringComparison.Ordinal))
+        {
+            return new CpeSunatResponse
+            {
+                Ok = false,
+                Estado = CpeEstados.ErrorSunat,
+                CodigoSunat = string.Empty,
+                MensajeSunat = "No se puede enviar a SUNAT porque la configuración no está completa.",
+                Errores = new List<string>
+                {
+                    $"UsuarioSol no corresponde al RUC del comprobante ({ruc}). " +
+                    "El usuario SOL debe iniciar con el mismo RUC del emisor (ej. {RUC}{USUARIO})."
+                }
             };
         }
 
         try
         {
-            var soapResponse = EnviarSoapSunatAsync(nombreZip, rutaZip)
+            var soapResponse = EnviarSoapSunatAsync(nombreZip, rutaZip, urlEnvio, usuarioSol, claveSol)
                 .GetAwaiter()
                 .GetResult();
 
             var applicationResponseBase64 = ExtraerApplicationResponse(soapResponse);
 
-            var nombreCdr = GuardarCdrReal(nombreZip, applicationResponseBase64);
+            var nombreCdr = GuardarCdrReal(nombreZip, applicationResponseBase64, ruc);
 
-            var resultadoCdr = _cdrService.LeerCdr(nombreCdr);
+            var resultadoCdr = _cdrService.LeerCdr(nombreCdr, ruc);
 
             return new CpeSunatResponse
             {
@@ -132,7 +201,7 @@ public class CpeSunatService : ICpeSunatService
         }
     }
 
-    private List<string> ValidarConfiguracionSunat(string? rucEmisor = null)
+    private List<string> ValidarConfiguracionSunatLegacy(string? rucEmisor = null)
     {
         var errores = new List<string>();
 
@@ -180,7 +249,7 @@ public class CpeSunatService : ICpeSunatService
         var ruc = partes[0];
         return ruc.Length == 11 && ruc.All(char.IsDigit) ? ruc : null;
     }
-    
+
     private static string CrearSoapEnvelopeSendBill(
         string nombreZip,
         string rutaZip,
@@ -216,16 +285,19 @@ public class CpeSunatService : ICpeSunatService
                 </soapenv:Envelope>
                 """;
     }
-    
-    private async Task<string> EnviarSoapSunatAsync(string nombreZip, string rutaZip)
-    {
-        var urlSunat = _settings.ObtenerUrlSunat();
 
+    private async Task<string> EnviarSoapSunatAsync(
+        string nombreZip,
+        string rutaZip,
+        string urlSunat,
+        string usuarioSol,
+        string claveSol)
+    {
         var soapEnvelope = CrearSoapEnvelopeSendBill(
             nombreZip,
             rutaZip,
-            _settings.UsuarioSol,
-            _settings.ClaveSol
+            usuarioSol,
+            claveSol
         );
 
         var client = _httpClientFactory.CreateClient();
@@ -253,7 +325,7 @@ public class CpeSunatService : ICpeSunatService
 
         return contenidoRespuesta;
     }
-    
+
     private static string ExtraerApplicationResponse(string soapResponse)
     {
         if (string.IsNullOrWhiteSpace(soapResponse))
@@ -293,8 +365,8 @@ public class CpeSunatService : ICpeSunatService
 
         return applicationResponse;
     }
-    
-    private string GuardarCdrReal(string nombreZip, string applicationResponseBase64)
+
+    private string GuardarCdrReal(string nombreZip, string applicationResponseBase64, string? ruc)
     {
         if (string.IsNullOrWhiteSpace(applicationResponseBase64))
         {
@@ -319,7 +391,7 @@ public class CpeSunatService : ICpeSunatService
 
         var nombreCdr = CpeNombreHelper.ObtenerNombreCdr(nombreZip);
 
-        _storageService.GuardarCdrBytes(nombreCdr, cdrBytes);
+        _storageService.GuardarCdrBytes(nombreCdr, cdrBytes, ruc);
 
         return nombreCdr;
     }

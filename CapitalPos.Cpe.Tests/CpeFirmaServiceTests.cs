@@ -1,5 +1,6 @@
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Infrastructure.Firma;
+using CapitalPos.Cpe.Api.Infrastructure.Tenancy;
 using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Settings;
 using Microsoft.Extensions.Options;
@@ -65,6 +66,9 @@ public class CpeFirmaServiceTests
         var rutaCertificado = Path.GetTempFileName();
         try
         {
+            // Debe existir y no estar vacío para superar la validación legacy de ruta.
+            File.WriteAllBytes(rutaCertificado, new byte[] { 1, 2, 3, 4 });
+
             var sut = CrearSut(
                 simularFirma: false,
                 rutaCertificado: rutaCertificado,
@@ -95,11 +99,15 @@ public class CpeFirmaServiceTests
         var settings = Options.Create(new CpeSettings
         {
             SimularFirma = simularFirma,
+            PermitirCredencialesLegacy = true,
             RutaCertificado = rutaCertificado,
             PasswordCertificado = passwordCertificado
         });
 
-        return new CpeFirmaService(settings, storage ?? new FakeStorageService(rutaXml: null));
+        return new CpeFirmaService(
+            settings,
+            storage ?? new FakeStorageService(rutaXml: null),
+            new EmisorContextAccessor());
     }
 
     private sealed class FakeStorageService : ICpeStorageService
@@ -111,26 +119,25 @@ public class CpeFirmaServiceTests
             _rutaXml = rutaXml;
         }
 
-        public string? ObtenerRutaXml(string nombreArchivo) => _rutaXml;
-
-        public string ObtenerCarpetaXml() => string.Empty;
-        public string GuardarXml(string nombreArchivo, string contenidoXml) => string.Empty;
-        public List<string> ListarXml() => new();
-        public string? LeerXml(string nombreArchivo) => null;
-        public string ObtenerCarpetaCdr() => string.Empty;
-        public string GuardarCdr(string nombreArchivo, string contenido) => string.Empty;
-        public List<string> ListarCdr() => new();
-        public string? ObtenerRutaCdr(string nombreArchivo) => null;
-        public string ObtenerCarpetaZip() => string.Empty;
-        public string GuardarZipDesdeXml(string nombreXml) => string.Empty;
-        public List<string> ListarZip() => new();
-        public string? ObtenerRutaZip(string nombreArchivo) => null;
-        public List<CpeArchivoInfoDto> ListarXmlInfo() => new();
-        public List<CpeArchivoInfoDto> ListarZipInfo() => new();
-        public List<CpeArchivoInfoDto> ListarCdrInfo() => new();
-        public CpeArchivosResumenDto ObtenerResumenArchivos() => new();
-        public CpeLimpiezaArchivosResponse LimpiarArchivosAntiguos(int diasAntiguedad, bool ejecutar) =>
+        public string? ObtenerRutaXml(string nombreArchivo, string? ruc = null) => _rutaXml;
+        public string ObtenerCarpetaXml(string? ruc = null) => string.Empty;
+        public string GuardarXml(string nombreArchivo, string contenidoXml, string? ruc = null) => string.Empty;
+        public List<string> ListarXml(string? ruc = null) => new();
+        public string? LeerXml(string nombreArchivo, string? ruc = null) => null;
+        public string ObtenerCarpetaCdr(string? ruc = null) => string.Empty;
+        public string GuardarCdr(string nombreArchivo, string contenido, string? ruc = null) => string.Empty;
+        public List<string> ListarCdr(string? ruc = null) => new();
+        public string? ObtenerRutaCdr(string nombreArchivo, string? ruc = null) => null;
+        public string ObtenerCarpetaZip(string? ruc = null) => string.Empty;
+        public string GuardarZipDesdeXml(string nombreXml, string? ruc = null) => string.Empty;
+        public List<string> ListarZip(string? ruc = null) => new();
+        public string? ObtenerRutaZip(string nombreArchivo, string? ruc = null) => null;
+        public List<CpeArchivoInfoDto> ListarXmlInfo(string? ruc = null) => new();
+        public List<CpeArchivoInfoDto> ListarZipInfo(string? ruc = null) => new();
+        public List<CpeArchivoInfoDto> ListarCdrInfo(string? ruc = null) => new();
+        public CpeArchivosResumenDto ObtenerResumenArchivos(string? ruc = null) => new();
+        public CpeLimpiezaArchivosResponse LimpiarArchivosAntiguos(int diasAntiguedad, bool ejecutar, string? ruc = null) =>
             new();
-        public string GuardarCdrBytes(string nombreArchivo, byte[] contenido) => string.Empty;
+        public string GuardarCdrBytes(string nombreArchivo, byte[] contenido, string? ruc = null) => string.Empty;
     }
 }

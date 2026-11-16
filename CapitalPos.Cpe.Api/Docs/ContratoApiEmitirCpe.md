@@ -616,3 +616,30 @@ mapear codigos publicos.
 - Evitar mensajes publicos con URL SUNAT, rutas internas o detalles SOAP.
 - Confirmar el tratamiento publico de `OBSERVADO` y `PENDIENTE`.
 - Mantener Swagger solo en desarrollo/red privada y revisar rutas publicas.
+
+## Multi-tenant (por RUC)
+
+Precondicion de `POST /api/cpe/emitir`: el RUC del emisor debe existir como
+`Emisor` activo en la BD de cpe-api, con certificado PFX activo y credenciales
+SOL del ambiente (`AmbienteDefault` del emisor). Si falta, la respuesta usa
+estado `ERROR_EMISOR`.
+
+Campo opcional de auditoria en el request:
+
+- `sistemaOrigen`: identifica el SaaS caller (`capitalpos`, `coleccionables`,
+  etc.). No forma parte de la clave de tenant.
+
+Onboarding interno (misma `X-API-KEY`):
+
+- `POST /api/emisores`
+- `PUT /api/emisores/{ruc}`
+- `GET /api/emisores/{ruc}/onboarding`
+- `POST /api/emisores/{ruc}/certificado` (multipart: `archivo` + `password`)
+- `POST /api/emisores/{ruc}/credenciales-sol`
+
+Idempotencia: si ya existe un comprobante `ACEPTADO`/`SIMULADO` con el mismo
+`(Ruc, TipoComprobante, Serie, Correlativo)`, se responde `YA_EMITIDO` con el
+registro existente.
+
+Archivos: `{RutaArchivos}/{Ambiente}/{RUC}/{XML|ZIP|CDR}`. Consultas de
+historial/archivos aceptan `?ruc=` para filtrar.

@@ -33,3 +33,6 @@ capitalpos-cpe-files/
 
 # Rider HTTP request history
 .idea/**/httpRequests/
+
+# Data Protection key ring (multi-instancia)
+**/dp-keys/

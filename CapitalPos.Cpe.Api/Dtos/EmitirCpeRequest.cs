@@ -43,6 +43,11 @@ public class EmitirCpeRequest
     /// Documento modificado (boleta/factura). Obligatorio cuando <see cref="TipoComprobante"/> es 07.
     /// </summary>
     public DocumentoReferenciaDto? DocumentoReferencia { get; set; }
+
+    /// <summary>
+    /// Solo auditoría (capitalpos, coleccionables, etc.). No forma parte de la clave de tenant.
+    /// </summary>
+    public string? SistemaOrigen { get; set; }
 }
 
 public class DocumentoReferenciaDto

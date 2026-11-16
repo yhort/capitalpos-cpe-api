@@ -4,5 +4,5 @@ namespace CapitalPos.Cpe.Api.Interfaces;
 
 public interface ICpeCdrService
 {
-    CpeCdrResultadoDto LeerCdr(string nombreCdr);
+    CpeCdrResultadoDto LeerCdr(string nombreCdr, string? ruc = null);
 }

@@ -4,7 +4,7 @@
 
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-7-blue)
 ![C#](https://img.shields.io/badge/C%23-.NET-success)
-![SQL Server](https://img.shields.io/badge/SQL%20Server-Database-red)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Npgsql-336791)
 ![REST API](https://img.shields.io/badge/REST-API-orange)
 ![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-green)
 
@@ -39,7 +39,7 @@ Por ello se desarrolló esta API REST utilizando ASP.NET Core.
 
 - ASP.NET Core 7
 - C#
-- SQL Server
+- PostgreSQL (Npgsql / EF Core)
 - REST API
 - Swagger / OpenAPI
 - Dependency Injection
@@ -47,6 +47,36 @@ Por ello se desarrolló esta API REST utilizando ASP.NET Core.
 - Arquitectura por Capas
 - Git
 - GitHub
+
+---
+
+# 🗄 Base de datos
+
+El motor oficial del microservicio es **PostgreSQL**, con el proveedor **Npgsql.EntityFrameworkCore.PostgreSQL**.
+
+Cadena de conexión de ejemplo (`ConnectionStrings:CpeDb` en `appsettings.json`):
+
+```text
+Host=localhost;Port=5432;Database=CapitalPosCpeDb;Username=postgres;Password=postgres
+```
+
+Ejemplo de conexión con `psql`:
+
+```bash
+psql "Host=localhost;Port=5432;Database=CapitalPosCpeDb;Username=postgres;Password=postgres"
+```
+
+Al arrancar la API (excepto el entorno `Testing`), EF Core aplica las migraciones automáticamente con `Database.Migrate()`.
+
+Para regenerar la migración inicial en desarrollo:
+
+```bash
+dotnet ef migrations add InitialMultiTenant \
+  --project CapitalPos.Cpe.Api/CapitalPos.Cpe.Api.csproj \
+  --startup-project CapitalPos.Cpe.Api/CapitalPos.Cpe.Api.csproj \
+  --context CpeDbContext \
+  --output-dir Data/Migrations
+```
 
 ---
 
@@ -63,7 +93,7 @@ APP["Aplicación Móvil<br/>Flutter"]
 
 API["CapitalPOS CPE API<br/>ASP.NET Core"]
 
-SQL["SQL Server"]
+PG["PostgreSQL"]
 
 XML["Generación XML"]
 
@@ -79,7 +109,7 @@ WEB --> API
 
 APP --> API
 
-API --> SQL
+API --> PG
 
 API --> XML
 
@@ -285,7 +315,7 @@ Especialista en:
 
 - ASP.NET Core
 - C#
-- SQL Server
+- PostgreSQL
 - Windows Forms
 - Angular
 - REST APIs

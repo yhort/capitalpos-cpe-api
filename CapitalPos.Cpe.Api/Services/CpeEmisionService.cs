@@ -1,12 +1,13 @@
-using CapitalPos.Cpe.Api.Dtos;
-using CapitalPos.Cpe.Api.Helpers;
-using CapitalPos.Cpe.Api.Settings;
-using Microsoft.Extensions.Options;
-using CapitalPos.Cpe.Api.Domain;
-using CapitalPos.Cpe.Api.Interfaces;
-using CapitalPos.Cpe.Api.Mappers;
 using System.IO.Compression;
 using System.Xml.Linq;
+using CapitalPos.Cpe.Api.Domain;
+using CapitalPos.Cpe.Api.Domain.Tenancy;
+using CapitalPos.Cpe.Api.Dtos;
+using CapitalPos.Cpe.Api.Helpers;
+using CapitalPos.Cpe.Api.Interfaces;
+using CapitalPos.Cpe.Api.Mappers;
+using CapitalPos.Cpe.Api.Settings;
+using Microsoft.Extensions.Options;
 
 namespace CapitalPos.Cpe.Api.Services;
 
@@ -20,19 +21,26 @@ public class CpeEmisionService
     private readonly ICpeHistorialService _historialService;
     private readonly ICpeFirmaService _firmaService;
     private readonly ICpeSunatService _sunatService;
+    private readonly IEmisorRuntimeContextResolver _emisorResolver;
+    private readonly IEmisorContextAccessor _emisorContextAccessor;
     private readonly ILogger<CpeEmisionService> _logger;
     private readonly CpeSettings _settings;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-
-    public CpeEmisionService(CpeValidacionService validacionService, ICpeStorageService storageService,
+    public CpeEmisionService(
+        CpeValidacionService validacionService,
+        ICpeStorageService storageService,
         ICpeXmlService xmlService,
         ICpeXmlValidatorService xmlValidatorService,
         ICpeHashService hashService,
         ICpeHistorialService historialService,
         ICpeFirmaService firmaService,
         ICpeSunatService sunatService,
+        IEmisorRuntimeContextResolver emisorResolver,
+        IEmisorContextAccessor emisorContextAccessor,
         ILogger<CpeEmisionService> logger,
-        IOptions<CpeSettings> options)
+        IOptions<CpeSettings> options,
+        IHttpContextAccessor httpContextAccessor)
     {
         _validacionService = validacionService;
         _storageService = storageService;
@@ -42,8 +50,11 @@ public class CpeEmisionService
         _historialService = historialService;
         _firmaService = firmaService;
         _sunatService = sunatService;
+        _emisorResolver = emisorResolver;
+        _emisorContextAccessor = emisorContextAccessor;
         _logger = logger;
         _settings = options.Value;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public CpeValidacionResponse ValidarComprobante(EmitirCpeRequest request)
@@ -60,7 +71,6 @@ public class CpeEmisionService
             };
         }
 
-        //var rucEmisor = CpeNombreHelper.ObtenerRucEmisor(request);
         return new CpeValidacionResponse
         {
             Ok = true,
@@ -85,12 +95,12 @@ public class CpeEmisionService
 
         try
         {
+            var ruc = CpeNombreHelper.ObtenerRucEmisor(request);
             var documento = CpeDocumentoMapper.FromRequest(request);
             var comprobante = CpeNombreHelper.ObtenerNumeroComprobante(request);
             var nombreXml = CpeNombreHelper.ObtenerNombreXml(request);
 
             var xmlGenerado = _xmlService.GenerarXml(documento);
-
             var validacionXml = _xmlValidatorService.ValidarXml(xmlGenerado);
 
             if (!validacionXml.Ok)
@@ -103,7 +113,7 @@ public class CpeEmisionService
                 };
             }
 
-            _storageService.GuardarXml(nombreXml, xmlGenerado);
+            _storageService.GuardarXml(nombreXml, xmlGenerado, ruc);
 
             return new CpeXmlResponse
             {
@@ -128,156 +138,130 @@ public class CpeEmisionService
 
     public CpeEmisionResponse EmitirComprobante(EmitirCpeRequest request)
     {
+        return EmitirComprobanteAsync(request).GetAwaiter().GetResult();
+    }
+
+    public async Task<CpeEmisionResponse> EmitirComprobanteAsync(EmitirCpeRequest request)
+    {
         var etapas = new List<CpeEtapaResponse>();
+        EmisorRuntimeContext? context = null;
 
         try
         {
             var rucEmisor = CpeNombreHelper.ObtenerRucEmisor(request);
             var comprobante = CpeNombreHelper.ObtenerNumeroComprobante(request);
 
+            var resolve = await _emisorResolver.ResolveFromRequestAsync(request);
+            if (!resolve.Ok || resolve.Context == null)
+            {
+                AgregarEtapa(etapas, CpeEtapas.Inicio, false, resolve.Mensaje);
+                return CrearError(
+                    CpeEstados.ErrorEmisor,
+                    resolve.Mensaje,
+                    resolve.Errores,
+                    etapas);
+            }
+
+            context = resolve.Context;
+            _emisorContextAccessor.Current = context;
+
             _logger.LogInformation(
-                "Iniciando emisión CPE. Comprobante: {Comprobante}, RUC: {Ruc}, Modo: {Modo}",
+                "Iniciando emisión CPE. Comprobante: {Comprobante}, RUC: {Ruc}, Ambiente: {Ambiente}, Legacy: {Legacy}",
                 comprobante,
                 rucEmisor,
-                _settings.Modo);
+                context.Ambiente,
+                context.EsLegacy);
 
             AgregarEtapa(
                 etapas,
                 CpeEtapas.Inicio,
                 true,
-                $"Inicio de emisión del comprobante {comprobante}."
-            );
+                $"Inicio de emisión del comprobante {comprobante}.");
+
+            var existente = await _historialService.ObtenerEmisionExistenteAsync(
+                rucEmisor,
+                request.TipoComprobante,
+                request.Serie,
+                request.Correlativo);
+
+            if (existente != null &&
+                (existente.Estado == CpeEstados.Aceptado ||
+                 existente.Estado == CpeEstados.Simulado ||
+                 existente.Estado == CpeEstados.YaEmitido))
+            {
+                existente.Estado = CpeEstados.YaEmitido;
+                existente.Mensaje =
+                    "Comprobante ya emitido previamente. Se devolvió el registro existente (idempotencia).";
+                existente.Etapas = etapas;
+                AgregarEtapa(etapas, "Idempotencia", true, "Se reutilizó la emisión existente.");
+                return existente;
+            }
 
             var validacion = ValidarComprobante(request);
 
             if (!validacion.Ok)
             {
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Validacion,
-                    false,
-                    "El comprobante tiene errores de validación."
-                );
-
-                _logger.LogWarning("No se pudo emitir CPE por errores de validación. Errores: {Errores}",
-                    string.Join(" | ", validacion.Errores));
-
+                AgregarEtapa(etapas, CpeEtapas.Validacion, false, "El comprobante tiene errores de validación.");
                 return CrearError(
                     CpeEstados.ErrorValidacion,
                     "No se puede emitir el comprobante porque tiene errores de validación.",
                     validacion.Errores,
-                    etapas
-                );
+                    etapas);
             }
 
-            AgregarEtapa(
-                etapas,
-                CpeEtapas.Validacion,
-                true,
-                "Comprobante validado correctamente."
-            );
+            AgregarEtapa(etapas, CpeEtapas.Validacion, true, "Comprobante validado correctamente.");
 
             string nombreXml;
-
             try
             {
-                nombreXml = GenerarYGuardarXml(request);
-
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Xml,
-                    true,
-                    $"XML generado correctamente: {nombreXml}."
-                );
+                nombreXml = GenerarYGuardarXml(request, rucEmisor);
+                AgregarEtapa(etapas, CpeEtapas.Xml, true, $"XML generado correctamente: {nombreXml}.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "No se pudo generar el XML.");
-
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Xml,
-                    false,
-                    "No se pudo generar el XML."
-                );
-
+                AgregarEtapa(etapas, CpeEtapas.Xml, false, "No se pudo generar el XML.");
                 return CrearError(
                     CpeEstados.ErrorXml,
                     "No se pudo generar el XML del comprobante.",
                     new List<string> { ex.Message },
-                    etapas
-                );
+                    etapas);
             }
 
-            var hashXml = CalcularHashXml(nombreXml);
-
-            var firmaResponse = FirmarXml(nombreXml);
+            var hashXml = CalcularHashXml(nombreXml, rucEmisor);
+            var firmaResponse = _firmaService.FirmarXml(nombreXml, context);
 
             if (!firmaResponse.Ok)
             {
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Firma,
-                    false,
-                    "No se pudo firmar el XML."
-                );
-
+                AgregarEtapa(etapas, CpeEtapas.Firma, false, "No se pudo firmar el XML.");
                 return CrearError(
                     CpeEstados.ErrorFirma,
                     "No se pudo firmar el XML.",
                     firmaResponse.Errores,
-                    etapas
-                );
+                    etapas);
             }
 
-            AgregarEtapa(
-                etapas,
-                CpeEtapas.Firma,
-                true,
-                $"XML firmado correctamente: {firmaResponse.NombreXml}."
-            );
+            AgregarEtapa(etapas, CpeEtapas.Firma, true, $"XML firmado correctamente: {firmaResponse.NombreXml}.");
 
-            var nombreZip = CrearZipDesdeXmlFirmado(firmaResponse.NombreXml!);
+            var nombreZip = CrearZipDesdeXmlFirmado(firmaResponse.NombreXml!, rucEmisor);
+            AgregarEtapa(etapas, CpeEtapas.Zip, true, $"ZIP generado correctamente: {nombreZip}.");
 
-            AgregarEtapa(
-                etapas,
-                CpeEtapas.Zip,
-                true,
-                $"ZIP generado correctamente: {nombreZip}."
-            );
+            var respuestaSunat = _sunatService.EnviarComprobante(nombreZip, context);
+            AgregarEtapa(etapas, CpeEtapas.Sunat, respuestaSunat.Ok, respuestaSunat.MensajeSunat);
 
-            var respuestaSunat = EnviarSunat(nombreZip);
-
-            AgregarEtapa(
-                etapas,
-                CpeEtapas.Sunat,
-                respuestaSunat.Ok,
-                respuestaSunat.MensajeSunat
-            );
-
-            GuardarCdrSiCorresponde(respuestaSunat);
+            GuardarCdrSiCorresponde(respuestaSunat, rucEmisor);
 
             if (respuestaSunat.Ok && !string.IsNullOrWhiteSpace(respuestaSunat.NombreCdr) &&
                 _settings.GuardarCdrSimulado)
             {
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Cdr,
-                    true,
-                    $"CDR guardado correctamente: {respuestaSunat.NombreCdr}."
-                );
+                AgregarEtapa(etapas, CpeEtapas.Cdr, true, $"CDR guardado correctamente: {respuestaSunat.NombreCdr}.");
             }
 
             if (respuestaSunat.Ok &&
                 !string.IsNullOrWhiteSpace(respuestaSunat.NombreCdr) &&
                 !_settings.GuardarCdrSimulado)
             {
-                AgregarEtapa(
-                    etapas,
-                    CpeEtapas.Cdr,
-                    true,
-                    "CDR simulado no guardado por configuración."
-                );
+                AgregarEtapa(etapas, CpeEtapas.Cdr, true, "CDR simulado no guardado por configuración.");
             }
 
             var response = new CpeEmisionResponse
@@ -296,26 +280,23 @@ public class CpeEmisionService
                 Errores = respuestaSunat.Errores
             };
 
-            GuardarHistorialSeguro(request, response);
+            await GuardarHistorialSeguroAsync(request, response, context);
             return response;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error interno al emitir CPE.");
-
-            AgregarEtapa(
-                etapas,
-                CpeEtapas.ErrorInterno,
-                false,
-                ex.Message
-            );
-
+            AgregarEtapa(etapas, CpeEtapas.ErrorInterno, false, ex.Message);
             return CrearError(
                 CpeEstados.ErrorInterno,
                 "Ocurrió un error al emitir el comprobante.",
                 new List<string> { ex.Message },
-                etapas
-            );
+                etapas);
+        }
+        finally
+        {
+            if (_emisorContextAccessor.Current == context)
+                _emisorContextAccessor.Current = null;
         }
     }
 
@@ -336,113 +317,59 @@ public class CpeEmisionService
         };
     }
 
-    private string GenerarYGuardarXml(EmitirCpeRequest request)
+    private string GenerarYGuardarXml(EmitirCpeRequest request, string ruc)
     {
         var documento = CpeDocumentoMapper.FromRequest(request);
-
         var nombreXml = CpeNombreHelper.ObtenerNombreXml(request);
         var xmlGenerado = _xmlService.GenerarXml(documento);
-
         var validacionXml = _xmlValidatorService.ValidarXml(xmlGenerado);
 
         if (!validacionXml.Ok)
         {
-            _logger.LogWarning(
-                "XML generado con errores. Archivo: {NombreXml}. Errores: {Errores}",
-                nombreXml,
-                string.Join(" | ", validacionXml.Errores)
-            );
-
             throw new InvalidOperationException(
-                $"El XML generado no es válido: {string.Join(" | ", validacionXml.Errores)}"
-            );
+                $"El XML generado no es válido: {string.Join(" | ", validacionXml.Errores)}");
         }
 
-        _storageService.GuardarXml(nombreXml, xmlGenerado);
-
-        _logger.LogInformation("XML generado y guardado correctamente: {NombreXml}", nombreXml);
-
+        _storageService.GuardarXml(nombreXml, xmlGenerado, ruc);
         return nombreXml;
     }
 
-    private CpeFirmaResponse FirmarXml(string nombreXml)
+    private string CrearZipDesdeXmlFirmado(string nombreXmlFirmado, string ruc)
     {
-        var firmaResponse = _firmaService.FirmarXml(nombreXml);
-
-        if (firmaResponse.Ok)
-        {
-            _logger.LogInformation("XML firmado correctamente: {NombreXml}", firmaResponse.NombreXml);
-        }
-        else
-        {
-            _logger.LogWarning("No se pudo firmar el XML: {NombreXml}. Errores: {Errores}",
-                nombreXml,
-                string.Join(" | ", firmaResponse.Errores));
-        }
-
-        return firmaResponse;
+        var rutaZip = _storageService.GuardarZipDesdeXml(nombreXmlFirmado, ruc);
+        return Path.GetFileName(rutaZip);
     }
 
-    private string CrearZipDesdeXmlFirmado(string nombreXmlFirmado)
-    {
-        var rutaZip = _storageService.GuardarZipDesdeXml(nombreXmlFirmado);
-        var nombreZip = Path.GetFileName(rutaZip);
-
-        _logger.LogInformation("ZIP generado correctamente: {NombreZip}", nombreZip);
-
-        return nombreZip;
-    }
-
-    private CpeSunatResponse EnviarSunat(string nombreZip)
-    {
-        var respuestaSunat = _sunatService.EnviarComprobante(nombreZip);
-
-        _logger.LogInformation("Respuesta SUNAT. Estado: {Estado}, Mensaje: {Mensaje}",
-            respuestaSunat.Estado,
-            respuestaSunat.MensajeSunat);
-
-        return respuestaSunat;
-    }
-
-    private void GuardarCdrSiCorresponde(CpeSunatResponse respuestaSunat)
+    private void GuardarCdrSiCorresponde(CpeSunatResponse respuestaSunat, string ruc)
     {
         if (!respuestaSunat.Ok || string.IsNullOrWhiteSpace(respuestaSunat.NombreCdr))
             return;
 
         if (!_settings.GuardarCdrSimulado)
-        {
-            _logger.LogInformation(
-                "No se guardó CDR simulado porque GuardarCdrSimulado está desactivado."
-            );
-
             return;
-        }
+
+        if (!_settings.SimularEnvioSunat)
+            return;
 
         var cdrZipBytes = CrearCdrSimuladoZipBytes(respuestaSunat);
-
-        _storageService.GuardarCdrBytes(respuestaSunat.NombreCdr, cdrZipBytes);
-
-        _logger.LogInformation("CDR simulado ZIP guardado correctamente: {NombreCdr}", respuestaSunat.NombreCdr);
+        _storageService.GuardarCdrBytes(respuestaSunat.NombreCdr, cdrZipBytes, ruc);
     }
-    
+
     private static byte[] CrearCdrSimuladoZipBytes(CpeSunatResponse respuestaSunat)
     {
         var nombreCdr = respuestaSunat.NombreCdr
                         ?? throw new InvalidOperationException("El nombre del CDR es obligatorio.");
 
         var nombreXmlInterno = Path.ChangeExtension(nombreCdr, ".xml")
-                               ?? throw new InvalidOperationException("No se pudo generar el nombre XML interno del CDR simulado.");
+                               ?? throw new InvalidOperationException(
+                                   "No se pudo generar el nombre XML interno del CDR simulado.");
 
         using var memoryStream = new MemoryStream();
-
         using (var zip = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
         {
             var entrada = zip.CreateEntry(nombreXmlInterno);
-
             using var entradaStream = entrada.Open();
-
-            var xml = CrearXmlCdrSimulado(respuestaSunat);
-            xml.Save(entradaStream);
+            CrearXmlCdrSimulado(respuestaSunat).Save(entradaStream);
         }
 
         return memoryStream.ToArray();
@@ -459,13 +386,11 @@ public class CpeEmisionService
             new XElement(app + "ApplicationResponse",
                 new XAttribute(XNamespace.Xmlns + "cbc", cbc),
                 new XAttribute(XNamespace.Xmlns + "cac", cac),
-
                 new XElement(cbc + "UBLVersionID", "2.0"),
                 new XElement(cbc + "CustomizationID", "1.0"),
                 new XElement(cbc + "ID", respuestaSunat.NombreCdr),
                 new XElement(cbc + "IssueDate", DateTime.Now.ToString("yyyy-MM-dd")),
                 new XElement(cbc + "IssueTime", DateTime.Now.ToString("HH:mm:ss")),
-
                 new XElement(cac + "DocumentResponse",
                     new XElement(cac + "Response",
                         new XElement(cbc + "ResponseCode", respuestaSunat.CodigoSunat),
@@ -476,11 +401,7 @@ public class CpeEmisionService
         );
     }
 
-    private static void AgregarEtapa(
-        List<CpeEtapaResponse> etapas,
-        string etapa,
-        bool ok,
-        string mensaje)
+    private static void AgregarEtapa(List<CpeEtapaResponse> etapas, string etapa, bool ok, string mensaje)
     {
         etapas.Add(new CpeEtapaResponse
         {
@@ -491,43 +412,40 @@ public class CpeEmisionService
         });
     }
 
-    private string CalcularHashXml(string nombreXml)
+    private string CalcularHashXml(string nombreXml, string ruc)
     {
-        var contenidoXml = _storageService.LeerXml(nombreXml);
-
+        var contenidoXml = _storageService.LeerXml(nombreXml, ruc);
         if (string.IsNullOrWhiteSpace(contenidoXml))
-        {
-            _logger.LogWarning("No se pudo calcular hash porque el XML no existe o está vacío: {NombreXml}", nombreXml);
             return string.Empty;
-        }
 
-        var hash = _hashService.CalcularHashSha256(contenidoXml);
-
-        _logger.LogInformation("Hash SHA256 calculado correctamente para XML {NombreXml}: {Hash}", nombreXml, hash);
-
-        return hash;
+        return _hashService.CalcularHashSha256(contenidoXml);
     }
 
-    private void GuardarHistorialSeguro(
+    private async Task GuardarHistorialSeguroAsync(
         EmitirCpeRequest request,
-        CpeEmisionResponse response)
+        CpeEmisionResponse response,
+        EmisorRuntimeContext context)
     {
         try
         {
-            var nombreHistorial = _historialService.GuardarHistorial(request, response);
+            var correlationId = _httpContextAccessor.HttpContext?.TraceIdentifier
+                                ?? _httpContextAccessor.HttpContext?.Request.Headers["X-Correlation-ID"]
+                                    .FirstOrDefault();
 
-            _logger.LogInformation(
-                "Historial de emisión registrado correctamente: {NombreHistorial}",
-                nombreHistorial
-            );
+            var id = await _historialService.GuardarHistorialAsync(
+                request,
+                response,
+                context,
+                correlationId);
+
+            _logger.LogInformation("Historial de emisión registrado correctamente: {IdHistorial}", id);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
                 "No se pudo guardar el historial de emisión del comprobante {Comprobante}.",
-                response.Comprobante
-            );
+                response.Comprobante);
         }
     }
 }

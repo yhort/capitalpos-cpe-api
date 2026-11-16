@@ -16,7 +16,7 @@ public class HistorialController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult ListarHistorial([FromQuery] int take = 50)
+    public IActionResult ListarHistorial([FromQuery] int take = 50, [FromQuery] string? ruc = null)
     {
         if (take <= 0)
             take = 50;
@@ -25,7 +25,7 @@ public class HistorialController : ControllerBase
             take = 200;
 
         var historial = _historialService
-            .ListarHistorial()
+            .ListarHistorial(ruc)
             .Take(take)
             .ToList();
 
@@ -44,7 +44,8 @@ public class HistorialController : ControllerBase
         [FromQuery] string? cliente,
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta,
-        [FromQuery] int take = 50)
+        [FromQuery] int take = 50,
+        [FromQuery] string? ruc = null)
     {
         var historial = _historialService.BuscarHistorial(
             comprobante,
@@ -52,7 +53,8 @@ public class HistorialController : ControllerBase
             cliente,
             desde,
             hasta,
-            take
+            take,
+            ruc
         );
 
         var response = ApiResponse<List<CpeHistorialItemDto>>.Success(
@@ -64,9 +66,9 @@ public class HistorialController : ControllerBase
     }
 
     [HttpGet("resumen")]
-    public IActionResult ObtenerResumen()
+    public IActionResult ObtenerResumen([FromQuery] string? ruc = null)
     {
-        var resumen = _historialService.ObtenerResumen();
+        var resumen = _historialService.ObtenerResumen(ruc);
 
         var response = ApiResponse<CpeHistorialResumenResponse>.Success(
             "Resumen del historial obtenido correctamente.",
@@ -77,9 +79,9 @@ public class HistorialController : ControllerBase
     }
 
     [HttpGet("{nombreArchivo}")]
-    public IActionResult ObtenerHistorial(string nombreArchivo)
+    public IActionResult ObtenerHistorial(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var historial = _historialService.ObtenerHistorial(nombreArchivo);
+        var historial = _historialService.ObtenerHistorial(nombreArchivo, ruc);
 
         if (historial == null)
         {

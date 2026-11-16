@@ -16,9 +16,9 @@ public class CpeCdrController : ControllerBase
     }
 
     [HttpGet("{nombreCdr}")]
-    public IActionResult LeerCdr(string nombreCdr)
+    public IActionResult LeerCdr(string nombreCdr, [FromQuery] string? ruc = null)
     {
-        var resultado = _cdrService.LeerCdr(nombreCdr);
+        var resultado = _cdrService.LeerCdr(nombreCdr, ruc);
 
         if (!resultado.Ok)
         {

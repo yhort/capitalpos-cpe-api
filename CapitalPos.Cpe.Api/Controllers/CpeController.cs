@@ -122,9 +122,9 @@ public class CpeController : ControllerBase
     }
     
     [HttpPost("emitir")]
-    public IActionResult Emitir([FromBody] EmitirCpeRequest request)
+    public async Task<IActionResult> Emitir([FromBody] EmitirCpeRequest request)
     {
-        var data = _cpeEmisionService.EmitirComprobante(request);
+        var data = await _cpeEmisionService.EmitirComprobanteAsync(request);
 
         if (data.Ok)
         {

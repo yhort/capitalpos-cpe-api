@@ -1,7 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Xml;
-using CapitalPos.Cpe.Api.Domain;
+using CapitalPos.Cpe.Api.Domain.Tenancy;
 using CapitalPos.Cpe.Api.Dtos;
 using CapitalPos.Cpe.Api.Interfaces;
 using CapitalPos.Cpe.Api.Settings;
@@ -13,16 +13,19 @@ public class CpeFirmaService : ICpeFirmaService
 {
     private readonly CpeSettings _settings;
     private readonly ICpeStorageService _storageService;
+    private readonly IEmisorContextAccessor _emisorContextAccessor;
 
     public CpeFirmaService(
         IOptions<CpeSettings> options,
-        ICpeStorageService storageService)
+        ICpeStorageService storageService,
+        IEmisorContextAccessor emisorContextAccessor)
     {
         _settings = options.Value;
         _storageService = storageService;
+        _emisorContextAccessor = emisorContextAccessor;
     }
 
-    public CpeFirmaResponse FirmarXml(string nombreXml)
+    public CpeFirmaResponse FirmarXml(string nombreXml, EmisorRuntimeContext? context = null)
     {
         if (string.IsNullOrWhiteSpace(nombreXml))
         {
@@ -51,9 +54,51 @@ public class CpeFirmaService : ICpeFirmaService
             };
         }
 
-        var erroresConfiguracion = ValidarConfiguracionFirma();
+        context ??= _emisorContextAccessor.Current;
 
-        if (erroresConfiguracion.Count > 0)
+        byte[]? pfxBytes = null;
+        string? password = null;
+        string? ruc = context?.Ruc;
+
+        if (context != null)
+        {
+            pfxBytes = context.CertificadoPfx;
+            password = context.PasswordCertificado;
+        }
+        else if (_settings.PermitirCredencialesLegacy)
+        {
+            var erroresLegacy = ValidarConfiguracionFirmaLegacy();
+            if (erroresLegacy.Count > 0)
+            {
+                return new CpeFirmaResponse
+                {
+                    Ok = false,
+                    Mensaje = "No se puede firmar el XML porque la configuración de firma no es válida.",
+                    NombreXml = nombreXml,
+                    XmlFirmado = false,
+                    Errores = erroresLegacy
+                };
+            }
+
+            pfxBytes = File.ReadAllBytes(_settings.RutaCertificado);
+            password = _settings.PasswordCertificado;
+        }
+        else
+        {
+            return new CpeFirmaResponse
+            {
+                Ok = false,
+                Mensaje = "No se puede firmar el XML porque no hay contexto de emisor.",
+                NombreXml = nombreXml,
+                XmlFirmado = false,
+                Errores = new List<string>
+                {
+                    "Debe resolver el emisor (RUC) antes de firmar o habilitar credenciales legacy."
+                }
+            };
+        }
+
+        if (pfxBytes == null || pfxBytes.Length == 0 || string.IsNullOrWhiteSpace(password))
         {
             return new CpeFirmaResponse
             {
@@ -61,11 +106,14 @@ public class CpeFirmaService : ICpeFirmaService
                 Mensaje = "No se puede firmar el XML porque la configuración de firma no es válida.",
                 NombreXml = nombreXml,
                 XmlFirmado = false,
-                Errores = erroresConfiguracion
+                Errores = new List<string>
+                {
+                    "El certificado digital o su contraseña no están disponibles."
+                }
             };
         }
 
-        var rutaXml = _storageService.ObtenerRutaXml(nombreXml);
+        var rutaXml = _storageService.ObtenerRutaXml(nombreXml, ruc);
 
         if (string.IsNullOrWhiteSpace(rutaXml) || !File.Exists(rutaXml))
         {
@@ -84,7 +132,7 @@ public class CpeFirmaService : ICpeFirmaService
 
         try
         {
-            FirmarArchivoXml(rutaXml);
+            FirmarArchivoXml(rutaXml, pfxBytes, password);
 
             return new CpeFirmaResponse
             {
@@ -111,7 +159,7 @@ public class CpeFirmaService : ICpeFirmaService
         }
     }
 
-    private List<string> ValidarConfiguracionFirma()
+    private List<string> ValidarConfiguracionFirmaLegacy()
     {
         var errores = new List<string>();
 
@@ -132,11 +180,11 @@ public class CpeFirmaService : ICpeFirmaService
         return errores;
     }
 
-    private void FirmarArchivoXml(string rutaXml)
+    private static void FirmarArchivoXml(string rutaXml, byte[] pfxBytes, string password)
     {
         var certificado = new X509Certificate2(
-            _settings.RutaCertificado,
-            _settings.PasswordCertificado,
+            pfxBytes,
+            password,
             X509KeyStorageFlags.Exportable
         );
 

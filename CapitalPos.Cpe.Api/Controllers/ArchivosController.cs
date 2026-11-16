@@ -21,9 +21,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("resumen")]
-    public IActionResult ObtenerResumenArchivos()
+    public IActionResult ObtenerResumenArchivos([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ObtenerResumenArchivos();
+        var data = _storageService.ObtenerResumenArchivos(ruc);
 
         var response = ApiResponse<CpeArchivosResumenDto>.Success(
             "Resumen de archivos CPE obtenido correctamente.",
@@ -39,9 +39,9 @@ public class ArchivosController : ControllerBase
 
 
     [HttpGet("xml")]
-    public IActionResult ListarXml()
+    public IActionResult ListarXml([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarXml();
+        var data = _storageService.ListarXml(ruc);
 
         var response = ApiResponse<List<string>>.Success(
             "Archivos XML obtenidos correctamente.",
@@ -52,9 +52,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("xml/info")]
-    public IActionResult ListarXmlInfo()
+    public IActionResult ListarXmlInfo([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarXmlInfo();
+        var data = _storageService.ListarXmlInfo(ruc);
 
         var response = ApiResponse<List<CpeArchivoInfoDto>>.Success(
             "Información de archivos XML obtenida correctamente.",
@@ -65,9 +65,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("xml/{nombreArchivo}")]
-    public IActionResult VerXml(string nombreArchivo)
+    public IActionResult VerXml(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var contenidoXml = _storageService.LeerXml(nombreArchivo);
+        var contenidoXml = _storageService.LeerXml(nombreArchivo, ruc);
 
         if (contenidoXml == null)
         {
@@ -83,9 +83,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("xml/{nombreArchivo}/descargar")]
-    public IActionResult DescargarXml(string nombreArchivo)
+    public IActionResult DescargarXml(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var ruta = _storageService.ObtenerRutaXml(nombreArchivo);
+        var ruta = _storageService.ObtenerRutaXml(nombreArchivo, ruc);
 
         if (ruta == null)
         {
@@ -103,9 +103,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("xml/{nombreArchivo}/validar")]
-    public IActionResult ValidarXmlGuardado(string nombreArchivo)
+    public IActionResult ValidarXmlGuardado(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var contenidoXml = _storageService.LeerXml(nombreArchivo);
+        var contenidoXml = _storageService.LeerXml(nombreArchivo, ruc);
 
         if (contenidoXml == null)
         {
@@ -140,9 +140,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("xml/{nombreArchivo}/resumen")]
-    public IActionResult ObtenerResumenXmlGuardado(string nombreArchivo)
+    public IActionResult ObtenerResumenXmlGuardado(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var contenidoXml = _storageService.LeerXml(nombreArchivo);
+        var contenidoXml = _storageService.LeerXml(nombreArchivo, ruc);
 
         if (contenidoXml == null)
         {
@@ -181,9 +181,9 @@ public class ArchivosController : ControllerBase
     // =========================
 
     [HttpGet("zip")]
-    public IActionResult ListarZip()
+    public IActionResult ListarZip([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarZip();
+        var data = _storageService.ListarZip(ruc);
 
         var response = ApiResponse<List<string>>.Success(
             "Archivos ZIP obtenidos correctamente.",
@@ -194,9 +194,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("zip/info")]
-    public IActionResult ListarZipInfo()
+    public IActionResult ListarZipInfo([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarZipInfo();
+        var data = _storageService.ListarZipInfo(ruc);
 
         var response = ApiResponse<List<CpeArchivoInfoDto>>.Success(
             "Información de archivos ZIP obtenida correctamente.",
@@ -207,9 +207,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("zip/{nombreArchivo}/descargar")]
-    public IActionResult DescargarZip(string nombreArchivo)
+    public IActionResult DescargarZip(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var ruta = _storageService.ObtenerRutaZip(nombreArchivo);
+        var ruta = _storageService.ObtenerRutaZip(nombreArchivo, ruc);
 
         if (ruta == null)
         {
@@ -231,9 +231,9 @@ public class ArchivosController : ControllerBase
     // =========================
 
     [HttpGet("cdr")]
-    public IActionResult ListarCdr()
+    public IActionResult ListarCdr([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarCdr();
+        var data = _storageService.ListarCdr(ruc);
 
         var response = ApiResponse<List<string>>.Success(
             "Archivos CDR obtenidos correctamente.",
@@ -244,9 +244,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("cdr/info")]
-    public IActionResult ListarCdrInfo()
+    public IActionResult ListarCdrInfo([FromQuery] string? ruc = null)
     {
-        var data = _storageService.ListarCdrInfo();
+        var data = _storageService.ListarCdrInfo(ruc);
 
         var response = ApiResponse<List<CpeArchivoInfoDto>>.Success(
             "Información de archivos CDR obtenida correctamente.",
@@ -257,9 +257,9 @@ public class ArchivosController : ControllerBase
     }
 
     [HttpGet("cdr/{nombreArchivo}/descargar")]
-    public IActionResult DescargarCdr(string nombreArchivo)
+    public IActionResult DescargarCdr(string nombreArchivo, [FromQuery] string? ruc = null)
     {
-        var ruta = _storageService.ObtenerRutaCdr(nombreArchivo);
+        var ruta = _storageService.ObtenerRutaCdr(nombreArchivo, ruc);
 
         if (ruta == null)
         {
@@ -279,7 +279,8 @@ public class ArchivosController : ControllerBase
     [HttpPost("limpiar-antiguos")]
     public IActionResult LimpiarArchivosAntiguos(
         [FromQuery] int dias = 7,
-        [FromQuery] bool ejecutar = false)
+        [FromQuery] bool ejecutar = false,
+        [FromQuery] string? ruc = null)
     {
         if (dias <= 0)
         {
@@ -291,7 +292,7 @@ public class ArchivosController : ControllerBase
             return BadRequest(errorResponse);
         }
 
-        var data = _storageService.LimpiarArchivosAntiguos(dias, ejecutar);
+        var data = _storageService.LimpiarArchivosAntiguos(dias, ejecutar, ruc);
 
         var mensaje = ejecutar
             ? "Limpieza de archivos antiguos ejecutada correctamente."
